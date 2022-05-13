@@ -1,14 +1,32 @@
+import math
 import os
 import random
-
+import numpy as np
 from PIL import Image, ImageChops, ImageMath, ImageFilter
 from PIL import ImageDraw
 
-import colors
-from generalfunctions import lengthdir_x,lengthdir_y
+from ZachsStupidImageEffectsLibrary import colors
+from ZachsStupidImageEffectsLibrary.internal import lengthdir_x, lengthdir_y, getdistancestopoints
+
+import io
+
+from PIL import ImageFont
+from wand.image import Image as WandImage
+
+#  Constants for simpleshape.
+SHAPE_TRIANGLE = 0
+SHAPE_SQUARE = 1
+SHAPE_PENTAGON = 2
+SHAPE_HEXAGON = 3
+SHAPE_HEPTAGON = 4
+SHAPE_OCTAGON = 5
+SHAPE_CIRCLE = 6
+SHAPE_DIAMOND = 7
+SHAPE_STAR = 8
+
 
 def outline(img, radius, color, retonly=False, pattern=None, minradius=None, maxradius=None, skipchance=0,
-            lowestradiusof=1, colorrandomize=0, positiondeviation=0, shape="circle", breeze={}):
+            lowestradiusof=1, colorrandomize=0, positiondeviation=0, shape=SHAPE_CIRCLE, shaperotation=0, breeze={}):
     """Draws an outline around an image with a transparent background.
 
     Parameters:
@@ -50,45 +68,32 @@ def outline(img, radius, color, retonly=False, pattern=None, minradius=None, max
                 if skipchance and random.random() <= skipchance:
                     radius = minradius
                 else:
-                    for _ in range(lowestradiusof-1):
+                    for _ in range(lowestradiusof - 1):
                         radius = min(radius, random.uniform(minradius, maxradius))
                     workingdev = random.uniform(-positiondeviation, positiondeviation)
                     # It's breezy.
                     if minradius == maxradius:
                         breezeradiusfactor = 1
                     else:
-                        breezeradiusfactor = (1 - (radius-minradius) / (maxradius-minradius))
-                    workingdev += workingdev*(breeze["left"] if workingdev < 0 else breeze["right"])\
-                                  *breezeradiusfactor\
+                        breezeradiusfactor = (1 - (radius - minradius) / (maxradius - minradius))
+                    workingdev += workingdev * (breeze["left"] if workingdev < 0 else breeze["right"]) \
+                                  * breezeradiusfactor \
                                   * min([random.random() for _ in range(3)])
                     x += workingdev
 
                     workingdev = random.uniform(-positiondeviation, positiondeviation)
-                    workingdev += workingdev*(breeze["up"] if workingdev < 0 else breeze["down"])\
-                                  *breezeradiusfactor\
+                    workingdev += workingdev * (breeze["up"] if workingdev < 0 else breeze["down"]) \
+                                  * breezeradiusfactor \
                                   * min([random.random() for _ in range(3)])
                     y += workingdev
 
                 if colorrandomize:
-                    currentcolor = tuple(min(255, max(0, c-colorrandomize+random.randint(0, colorrandomize*2))) for c in color)
+                    currentcolor = tuple(
+                        min(255, max(0, c - colorrandomize + random.randint(0, colorrandomize * 2))) for c in color)
                 else:
                     currentcolor = color
 
-                if radius > 0:
-                    if shape == "star":
-                        draw_star(outlinedraw, (x,y), random.random()*360, 5, radius*random.uniform(0.15, 0.6), radius, currentcolor)
-                    elif shape == "circle":
-                        outlinedraw.ellipse((x-radius, y-radius, x+radius, y+radius), currentcolor)
-                    elif shape == "square":
-                        outlinedraw.rectangle((x-radius, y-radius, x+radius, y+radius), fill=currentcolor)
-                    elif shape == "hexagon":
-                        outlinedraw.regular_polygon((x, y, radius), 6, fill=currentcolor)
-                    elif shape == "spinny square":
-                        outlinedraw.regular_polygon((x, y, radius), 4, rotation=random.random()*360, fill=currentcolor)
-                    elif shape == "many shapes":
-                        outlinedraw.regular_polygon((x, y, radius), random.choice([3,4,5,6,8]), rotation=random.random()*360, fill=currentcolor)
-                    else:
-                        raise Exception("Invalid shape")
+                simpleshape(outlinedraw, (x, y), radius, currentcolor, shape, rotation=shaperotation)
         if pattern:
             outline = transferalpha(outline, pattern)
 
@@ -96,57 +101,61 @@ def outline(img, radius, color, retonly=False, pattern=None, minradius=None, max
         outline.alpha_composite(img)
     return outline
 
+
 def inneroutline(img, radius, color, retonly=False, pattern=None):
-    # Get a white silhouette of the image
-    a = roundalpha(img).getchannel("A")
-    bwimg = Image.merge("RGBA", (a,a,a,a))
+    # Create a slightly larger image that can for sure hold the white outline coming up.
+    slightlylargerimg = img.crop((-1,-1,img.width+1,img.height+1))
+
+    # Get a white silhouette of the slightly larger img
+    a = roundalpha(slightlylargerimg).getchannel("A")
+    bwimg = Image.merge("RGBA", (a, a, a, a))
 
     # Get a white outline of the image
-    outline(bwimg, 1, (0,0,0,0))
+    outline(bwimg, 1, (0, 0, 0, 0))
     thinblackoutline = bwimg.getchannel("R")
     two = Image.eval(thinblackoutline, lambda x: 255 - x)  # Thin white outline
-    two = Image.merge("RGBA", (two,two,two,two))
+    two = Image.merge("RGBA", (two, two, two, two))
 
-    # Apply the outline to this line, get only the lowest alphas, and return
+    # Apply the outline to this line, get only the lowest alphas
     inneroutline = outline(two, radius, color, retonly=True, pattern=pattern)
-    inneroutline = lowestoftwoalphaas(inneroutline, img)
+    inneroutline = lowestoftwoalphaas(inneroutline, slightlylargerimg)
+
+    # Convert the slightly larger img back to its original size
+    inneroutline.crop((1,1,inneroutline.width-1,inneroutline.height-1))
+
+    # Return
     if not retonly:
         img.alpha_composite(inneroutline)
         inneroutline = img
     return inneroutline
 
-def pattern(color1, color2):
-    dir = "images/patterns"
-    file = random.choice(os.listdir(dir))
-    ret = Image.open(os.path.join(dir, file)).convert("RGB")
-    rgba = list(ret.split())
-    for x in range(3):
-        rgba[x] = Image.eval(rgba[x], lambda y: ((color1[x]-color2[x])/255*y)+color2[x])
-    ret = Image.merge("RGB", rgba)
-    return ret
 
 def transferalpha(alphaman, colorman):
     colorman = colorman.resize(alphaman.size)
     a = alphaman.getchannel("A")
     r, g, b = colorman.split()[:3]
-    return Image.merge("RGBA", (r,g,b,a))
+    return Image.merge("RGBA", (r, g, b, a))
+
 
 def roundalpha(img):
-    r,g,b,a = img.split()
+    r, g, b, a = img.split()
     a = Image.eval(a, lambda x: round(x / 255) * 255)
-    return Image.merge("RGBA", (r,g,b,a))
+    return Image.merge("RGBA", (r, g, b, a))
+
 
 def threshholdalpha(img, threshhold):
-    r,g,b,a = img.split()
+    r, g, b, a = img.split()
     a = Image.eval(a, lambda x: 0 if x < threshhold else 255)
-    return Image.merge("RGBA", (r,g,b,a))
+    return Image.merge("RGBA", (r, g, b, a))
+
 
 def lowestoftwoalphaas(returnme, otherimage):
     a = returnme.getchannel("A")
     b = otherimage.getchannel("A")
     a = ImageMath.eval("convert(min(a, b), 'L')", a=a, b=b)
     r, b, g, nerd = returnme.split()
-    return Image.merge("RGBA", (r, g, b ,a))
+    return Image.merge("RGBA", (r, g, b, a))
+
 
 def indent(img):
     # Open
@@ -157,108 +166,150 @@ def indent(img):
         if indentimg.size[0] >= img.size[0] and indentimg.size[1] >= img.size[1]:
             break
     if indentimg.size[0] > indentimg.size[1]:
-        indentimg.thumbnail((999999, max(img.size)*2))
+        indentimg.thumbnail((999999, max(img.size) * 2))
     else:
-        indentimg.thumbnail((max(img.size)*2, 999999))
+        indentimg.thumbnail((max(img.size) * 2, 999999))
 
     # Crop
-    startx = random.randint(0, indentimg.size[0]-img.size[0])
-    starty = random.randint(0, indentimg.size[1]-img.size[1])
-    indentimg = indentimg.crop((startx, starty, startx+img.size[0], starty+img.size[1]))
+    startx = random.randint(0, indentimg.size[0] - img.size[0])
+    starty = random.randint(0, indentimg.size[1] - img.size[1])
+    indentimg = indentimg.crop((startx, starty, startx + img.size[0], starty + img.size[1]))
 
     # Get minmax
     mincolor, maxcolor = indentimg.getextrema()
-    colordif = maxcolor-mincolor
+    colordif = maxcolor - mincolor
 
     # Stretch the values
     disfromcenter = 255
-    indentimg = Image.eval(indentimg, lambda x: ((x-mincolor)/colordif*disfromcenter)-(disfromcenter//2)+127)
+    indentimg = Image.eval(indentimg,
+                           lambda x: ((x - mincolor) / colordif * disfromcenter) - (disfromcenter // 2) + 127)
 
     indentimgdata = indentimg.load()
     l = []
     for x in range(indentimg.size[0]):
         for y in range(indentimg.size[1]):
-            l.append( [x, y, indentimgdata[x, y]] )
+            l.append([x, y, indentimgdata[x, y]])
     l = sorted(l, key=lambda x: x[2])
     for n, z in enumerate(l):
         x, y, cum = z
-        indentimgdata[x, y] = int(n/len(l)*255)
+        indentimgdata[x, y] = int(n / len(l) * 255)
     # indentimg.show()
 
     indentimg = indentimg.convert("RGBA")
     r, g, b, a = indentimg.split()
-    a = Image.eval(r, lambda x: ( (abs(x-127)/(disfromcenter//2))*2  # Convert black and white to distances from center
-                                  *16**2  # Pronounce the tip
-                                  /256*32  # max
-                                  #  //16*16  # Round
-                                  ))
-    bwband = Image.eval(r, lambda x: round(x/255)*255 )
-    indentimg = Image.merge("RGBA", (bwband,bwband,bwband,a))
+    a = Image.eval(r, lambda x: (
+            (abs(x - 127) / (disfromcenter // 2)) * 2  # Convert black and white to distances from center
+            * 16 ** 2  # Pronounce the tip
+            / 256 * 32  # max
+        #  //16*16  # Round
+    ))
+    bwband = Image.eval(r, lambda x: round(x / 255) * 255)
+    indentimg = Image.merge("RGBA", (bwband, bwband, bwband, a))
 
-    invertband = Image.eval(r, lambda x: 255-x )
-    indentimginverted = Image.merge("RGBA", (invertband,invertband,invertband,a))
+    invertband = Image.eval(r, lambda x: 255 - x)
+    indentimginverted = Image.merge("RGBA", (invertband, invertband, invertband, a))
     indentimginverted = ImageChops.offset(indentimginverted, 5, 5)
     img = img.convert("RGBA")
     a = img.getchannel("A")
     img.alpha_composite(indentimg)
     r, g, b, WAAAAAA = img.split()
-    img = Image.merge("RGBA", (r,g,b,a))
+    img = Image.merge("RGBA", (r, g, b, a))
 
     return img
+
 
 def offsetedge(img, xoff, yoff):
     img = roundalpha(img)
     a = img.getchannel("A")
     allwhiteimg = Image.new("L", a.size, 255)
     allblackimg = Image.new("L", a.size, 0)
-    w = Image.merge("RGBA", (allwhiteimg,allwhiteimg,allwhiteimg, a))
-    b = Image.merge("RGBA", (allblackimg,allblackimg,allblackimg, a))
+    w = Image.merge("RGBA", (allwhiteimg, allwhiteimg, allwhiteimg, a))
+    b = Image.merge("RGBA", (allblackimg, allblackimg, allblackimg, a))
     b = ImageChops.offset(b, xoff, yoff)
     w.alpha_composite(b)
     allblackimg = allblackimg.convert("RGBA")
     allblackimg.alpha_composite(w)
     thisbandisgoingtobeeveryband = allblackimg.getchannel("R")
-    ret = Image.merge("RGBA", (thisbandisgoingtobeeveryband,thisbandisgoingtobeeveryband,thisbandisgoingtobeeveryband,thisbandisgoingtobeeveryband))
+    ret = Image.merge("RGBA", (thisbandisgoingtobeeveryband, thisbandisgoingtobeeveryband, thisbandisgoingtobeeveryband,
+                               thisbandisgoingtobeeveryband))
     return ret
 
-def croptocontent(img):
+
+def croptocontent(img, forcetop=None, forceleft=None, forcebottom=None, forceright=None):
+    """Returns an image cropped to its bounding box.
+
+    Parameters:
+    img (PIL.Image): The image to be cropped.
+    forcetop (int): Replaces the top of the bounding box.
+    forceleft (int): Replaces the left of the bounding box.
+    forcebottom (int): Replaces the bottom of the bounding box.
+    forceright (int): Replaces the right of the bounding box.
+
+    Returns:
+    (PIL.Image): Cropped image."""
+    # Get bounding box
     bb = img.getbbox()
+    # If it's None, it's empty
+    if bb is None:
+        bb = [0,0,1,1]
+    else:
+        # Convert because tuple indexes can't be modified
+        bb = list(bb)
+        # Turns out the bounding box is off by one pixel in each direction, so fix that
+        for index, offset in enumerate([-1,-1,1,1]):
+            bb[index] += offset
+    # Replace bits of it, if needed
+    if forcetop is not None or forceleft is not None or forcebottom is not None or forceright is not None:
+        # Check each possible replacement and use it if needed
+        for force, index in (
+                (forceleft, 0),
+                (forcetop, 1),
+                (forceright, 2),
+                (forcebottom, 3),
+        ):
+            if force is not None:
+                bb[index] = force
+    # Crop and return
     img = img.crop(bb)
     return img
 
+
 def resizeandcrop(img, size):
+    """Matches one side by resizing and the other by cropping."""
     oldwidth, oldheight = img.size
     newwidth, newheight = size
 
-    widthmultiplier = newwidth/oldwidth
-    heightmultiplier = newheight/oldheight
+    widthmultiplier = newwidth / oldwidth
+    heightmultiplier = newheight / oldheight
     multiplier = max(widthmultiplier, heightmultiplier)
 
-    stretchsize = (round(oldwidth*multiplier), round(oldheight*multiplier))
+    stretchsize = (round(oldwidth * multiplier), round(oldheight * multiplier))
     stretchedimg = img.resize(stretchsize)
 
     stretchedwidth, stretchedheight = stretchedimg.size
-    offsetx = abs(newwidth-stretchedwidth)//2
-    offsety = abs(newheight-stretchedheight)//2
-    croppedimg = stretchedimg.crop(box=(offsetx, offsety, offsetx+newwidth, offsety+newheight))
+    offsetx = abs(newwidth - stretchedwidth) // 2
+    offsety = abs(newheight - stretchedheight) // 2
+    croppedimg = stretchedimg.crop(box=(offsetx, offsety, offsetx + newwidth, offsety + newheight))
     return croppedimg
 
+
 def shading(img, offx, offy, size, shrink, growback, color, alpha, blockermultiplier=1, blurring=False):
+    """Outline-based shading."""
     hasntblurredyet = True
     # Get side to shade, and also the opposite side
     light = offsetedge(img, offx, offy)
-    dark = lowestoftwoalphaas(Image.new("RGBA", light.size, (0,0,0,255)), offsetedge(img, -offx, -offy))
+    dark = lowestoftwoalphaas(Image.new("RGBA", light.size, (0, 0, 0, 255)), offsetedge(img, -offx, -offy))
     # Make it bigger, one at a time, from both sides. The dark cancels out the light.
     # The lights from each step are added together.
     lighttomakeclonesof = light.copy()
-    for x in range(1, size+1):
+    for x in range(1, size + 1):
         workinglight = lighttomakeclonesof.copy()
         workingdark = dark.copy()
         workinglight = outline(workinglight, x, (255, 255, 255, 255))
-        workingdark = outline(workingdark, x*blockermultiplier, (0, 0, 0, 255))
+        workingdark = outline(workingdark, x * blockermultiplier, (0, 0, 0, 255))
         workinglight.alpha_composite(workingdark)
         a = workinglight.getchannel("R")
-        light.alpha_composite(Image.merge("RGBA", (a,a,a,a)))
+        light.alpha_composite(Image.merge("RGBA", (a, a, a, a)))
     # Blur?
     if not shrink and not growback and blurring:
         light = light.filter(ImageFilter.GaussianBlur(radius=5))
@@ -278,7 +329,7 @@ def shading(img, offx, offy, size, shrink, growback, color, alpha, blockermultip
         hasntblurredyet = False
     # Grow it back
     if growback:
-        light = outline(light, growback, (255,255,255,255))
+        light = outline(light, growback, (255, 255, 255, 255))
     # Remove stray alpha nonsense 2
     r = light.getchannel("R")
     lighttrans = Image.eval(r, lambda x: min(x, alpha))
@@ -293,20 +344,28 @@ def shading(img, offx, offy, size, shrink, growback, color, alpha, blockermultip
     img.alpha_composite(light)
     return img
 
+
 def sharplight(img, disout, size, blockermultiplier=1, blurring=False):
-    return shading(img, 1, 1, size+disout, disout, 0, colors.randomwhite(), 192, blockermultiplier=blockermultiplier,
+    """Sticks out from the edge, not rounded."""
+    return shading(img, 1, 1, size + disout, disout, 0, colors.randomwhite(), 192, blockermultiplier=blockermultiplier,
                    blurring=blurring)
 
+
 def roundedlight(img, disout, size, blockermultiplier=1, blurring=False):
-    return shading(img, 1, 1, size+disout, ((size+disout)/2)-1, disout/2-1, colors.randomwhite(), 127,
+    """Sticks out from the edge, rounded."""
+    return shading(img, 1, 1, size + disout, ((size + disout) / 2) - 1, disout / 2 - 1, colors.randomwhite(), 127,
                    blockermultiplier=blockermultiplier, blurring=blurring)
 
+
 def edgelight(img, size, blockermultiplier=1, blurring=False):
+    """Doesn't stick out from the edge."""
     return shading(img, 1, 1, size, 0, 0, colors.randomwhite(), 127, blockermultiplier=blockermultiplier,
                    blurring=blurring)
 
+
 def shadow(img, size, blockermultiplier=1, blurring=False):
     return shading(img, -1, -1, size, 0, 0, (0, 0, 0), 64, blockermultiplier=blockermultiplier, blurring=blurring)
+
 
 def shadingwrapper(img):
     choice = random.randint(0, 4)
@@ -327,6 +386,74 @@ def shadingwrapper(img):
         img = edgelight(img, 20, blurring=blurring, blockermultiplier=2)
         img = shadow(img, 20, blurring=blurring, blockermultiplier=2)
     return img
+
+
+def directionalshading(img):
+    """Draws gradient-y shading based on direction from the light source. Does this by repeatedly drawing the largest
+    still-possible shortest-distance lines from inside the structure to an outline along the outside."""
+    from ZachsStupidImageEffectsLibrary.analysis import getallopaquepixels, getedgepixels
+
+    # Get possible endpoints
+    endpoints = getedgepixels(img)
+
+    # Get possible starting points
+    startpoints = getallopaquepixels(img)
+    startpoints -= endpoints
+
+    # Get potential lines
+    potentiallines = {}
+    for potentialline in getdistancestopoints(startpoints, endpoints):
+        potentiallines[potentialline.startpoint] = potentialline
+
+    # Draw along the longest potential lines
+    shadingcolors = Image.new("LA", img.size)
+    draw = ImageDraw.Draw(shadingcolors)
+    n = 0
+    goalpoints = len(startpoints | endpoints)
+    while goalpoints*0.6 > len(getallopaquepixels(shadingcolors)) and n < 100:
+        print(len(getallopaquepixels(shadingcolors)), goalpoints)
+        # Get current longest
+        longest = -1
+        for startpoint in startpoints:
+            potentialline = potentiallines[startpoint]
+            longest = max(longest, potentialline.dis)
+        # if longest <= 8:
+        #     break
+        # Draw on all of that length
+        for startpoint in list(startpoints):
+            potentialline = potentiallines[startpoint]
+            if potentialline.dis == longest:
+                absolute = round(abs((potentialline.dir+135)%360-180)/180*255)
+                using = absolute # round(absolute/255)*255
+                #draw.line((potentialline.startpoint, potentialline.endpoint), (using, 255))
+                draw.point(potentialline.startpoint, (using, 255))
+                startpoints.remove(potentialline.startpoint)
+                # n += 1
+                # if n**0.5 == round(n**0.5):
+                #     img.alpha_composite(shadingcolors.convert("RGBA"))
+                #     img.show()
+        # Remove everything that's now filled in
+        #shadingcolorspoints = getallalphapoints(shadingcolors)
+        #print(potentialline.startpoint in shadingcolorspoints)
+        #startpoints -= getallalphapoints(shadingcolors)
+        #print(len(startpoints))
+        n += 1
+
+    #shadingcolors = shadingcolors.convert("RGBA")
+    # for x in range(100):
+    #     blurryboy = shadingcolors.copy()
+    #     blurryboy = blurryboy.filter(ImageFilter.GaussianBlur)
+    #     blurryboy.alpha_composite(shadingcolors)
+    #     shadingcolors = blurryboy
+    shadingcolorsdata = shadingcolors.load()
+    for x in range(shadingcolors.width):
+        for y in range(shadingcolors.height):
+            if shadingcolorsdata[x,y][1] == 0:
+                pass
+
+
+    shadingcolors.putalpha(img.split()[img.getbands().index("A")])
+    img.alpha_composite(shadingcolors.convert("RGBA"))
 
 def godeepdreamyourself(img, max_dim=None, steps=100):
     """A lazy wrapper for something made by somebody cooler than me."""
@@ -451,15 +578,411 @@ def godeepdreamyourself(img, max_dim=None, steps=100):
                                       steps=steps, step_size=0.01)
     return dream_img
 
-def draw_star(draw, xy, dir, sides, innerradius, outerradius, fill):
+
+def draw_star(draw, xy, dir, points, innerradius, outerradius, fill):
+    """Draw a star. Meant to invoke PIL's geometry drawing functions."""
     x, y = xy
-    inneroffset=360/sides/2
-    for d in range(sides):
-        workingdir = dir+(360/sides*d)
+    inneroffset = 360 / points / 2
+    for d in range(points):
+        workingdir = dir + (360 / points * d)
         draw.polygon([
-            (x + lengthdir_x(innerradius, workingdir-inneroffset), y + lengthdir_y(innerradius, workingdir-inneroffset)),
+            (x + lengthdir_x(innerradius, workingdir - inneroffset),
+             y + lengthdir_y(innerradius, workingdir - inneroffset)),
             (x + lengthdir_x(outerradius, workingdir), y + lengthdir_y(outerradius, workingdir)),
-            (x + lengthdir_x(innerradius, workingdir+inneroffset), y + lengthdir_y(innerradius, workingdir+inneroffset)),
-             ],
-                        fill=fill)
+            (x + lengthdir_x(innerradius, workingdir + inneroffset),
+             y + lengthdir_y(innerradius, workingdir + inneroffset)),
+        ],
+            fill=fill)
     draw.ellipse((x - innerradius, y - innerradius, x + innerradius, y + innerradius), fill)
+
+
+def repaint(img, function, growthchance=0.5, recalculationrate=10):
+    """Takes an image(A), and creates a blank image(B). Until none exist, picks pixels that are transparent(alpha 0) in
+    Image B but not image A, and runs function on Image B using the information from that pixel on Image A.
+    I suppose it could be thought of repainting img using function as the brush.
+
+    Parameters:
+    img (PIL.Image): The original image.
+    function (function): A function that takes the following arguments:
+        img (PIL.ImageDraw.ImageDraw): Image B.
+        xy (Tuple): Where to draw on Image B.
+        size (int): How large the shape to draw on Image B is.
+        color (Tuple): What color to draw on Image B.
+    growthchance (float): Chance of higher sizes. Must be less than one.
+    recalculationrate (int): How many "strokes" will be done at once before checking which pixels are still transparent.
+
+    Returns:
+    tuple: All coordinates to which function returned true."""
+    # Make sure the growth chance isn't 1 or greater to avoid infinite loops
+    if growthchance >= 1:
+        raise Exception("Growth chance must be less than 1.")
+
+    # Set shit up
+    originalimg = img.convert("RGBA")
+    newimg = Image.new("RGBA", originalimg.size)
+    newimg.thumbnail()
+    originalimgdata = originalimg.load()
+    newimgdata = newimg.load()
+    originaltransparentpixels = set(pixelfilter(lambda x: x[3] == 0, originalimg, imgdata=originalimgdata))
+
+    # Main loop
+    while True:
+        # Get remaining transparent pixels
+        remainingtransparentpixels = list(
+            set(pixelfilter(lambda x: x[3] == 0, newimg, imgdata=newimgdata)) \
+            - originaltransparentpixels
+        )
+
+        # Bail if finished
+        if not remainingtransparentpixels:
+            break
+
+        # Iterate through them
+        random.shuffle(remainingtransparentpixels)
+        for xy in remainingtransparentpixels[:min(len(remainingtransparentpixels), recalculationrate)]:
+            # Get size
+            size = 1
+            while random.random() <= growthchance:
+                size += 1
+
+            # Get color
+            color = originalimgdata[xy[0], xy[1]]
+
+            # Do the function
+            function(newimg, xy, size, color)
+
+    # Return
+    return newimg
+
+
+def pixelfilter(function, img, imgdata=None):
+    """Returns the coordinates of all pixels that match a function.
+
+    Parameters:
+    function (function): A function that takes a tuple as input and returns a boolean. Determines what pixels to return.
+    img (PIL.Image): How many pixels out the outline stretches.
+    imgdata (PIL.PixelAccess): The result of img.load(), in case you had it loaded already. Generated if not provided.
+
+    Yields:
+    tuple: All coordinates to which function returned true."""
+    # Create imgdata if it's not provided
+    if imgdata is None:
+        imgdata = img.load()
+
+    # Gee I fuckin' wonder
+    for x in range(img.size[0]):
+        for y in range(img.size[1]):
+            if function(imgdata[x, y]):
+                yield x, y
+
+
+def simpleshape(imgordraw, xy, radius, color, shape, rotation=None):
+    """Wrapper for more complicated shape drawing functions so they can be more easily interchanged.
+
+    Parameters:
+    img (PIL.ImageDraw.ImageDraw or PIL.Image): The Image or ImageDraw to draw on.
+    xy (Tuple): Center point of the shape.
+    radius (float): Distance from center the shape reaches.
+    color (Tuple): Color/fill of the shape.
+    rotation: Angle of the shape. Random if not provided.
+
+    Returns:
+    PIL.ImageDraw.ImageDraw or PIL.Image: img. Doesn't make a copy, only returns for convenience."""
+    x, y = xy
+    if rotation is None:
+        rotation = random.random() * 360
+
+    if type(imgordraw) == Image.Image:
+        draw = ImageDraw.Draw(imgordraw)
+    else:
+        draw = imgordraw
+
+    if type(shape) is not int:
+        shape = random.choice(shape)
+
+    if radius > 0:
+        # Draw triangle
+        if shape == SHAPE_TRIANGLE:
+            draw.regular_polygon((x, y, radius), 3, rotation=rotation, fill=color)
+        # Draw straight square
+        elif shape == SHAPE_SQUARE and rotation % 90 == 0:
+            draw.rectangle((x - radius, y - radius, x + radius, y + radius), fill=color)
+        # Draw any other square
+        elif shape == SHAPE_SQUARE:
+            draw.regular_polygon((x, y, radius), 4, rotation=rotation, fill=color)
+        # Draw pentagon
+        elif shape == SHAPE_PENTAGON:
+            draw.regular_polygon((x, y, radius), 5, rotation=rotation, fill=color)
+        # Draw hexagon
+        elif shape == SHAPE_HEXAGON:
+            draw.regular_polygon((x, y, radius), 6, rotation=rotation, fill=color)
+        # Draw heptagon
+        elif shape == SHAPE_HEPTAGON:
+            draw.regular_polygon((x, y, radius), 7, rotation=rotation, fill=color)
+        # Draw octagon
+        elif shape == SHAPE_OCTAGON:
+            draw.regular_polygon((x, y, radius), 8, rotation=rotation, fill=color)
+        # Draw circle
+        elif shape == SHAPE_CIRCLE:
+            draw.ellipse((x - radius, y - radius, x + radius, y + radius), color)
+        # Draw diamond
+        elif shape == SHAPE_DIAMOND:
+            draw.polygon((
+                (
+                    x + lengthdir_x(radius, 0+rotation),
+                    y + lengthdir_y(radius, 0+rotation)
+                ),
+                (
+                    x + lengthdir_x(radius/2, 90+rotation),
+                    y + lengthdir_y(radius/2, 90+rotation)
+                ),
+                (
+                    x + lengthdir_x(radius, 180+rotation),
+                    y + lengthdir_y(radius, 180+rotation)
+                ),
+                (
+                    x + lengthdir_x(radius/2, 270+rotation),
+                    y + lengthdir_y(radius/2, 270+rotation)
+                )
+            ), fill=color)
+        # Draw star
+        elif shape == SHAPE_STAR:
+            draw_star(draw, (x, y), random.random() * 360, 5, radius * random.uniform(0.15, 0.6),
+                      radius, color)
+        # Draw NOTHING!!!
+        else:
+            raise Exception("Invalid shape!")
+
+        # elif shape == "many shapes":
+        #     draw.regular_polygon((x, y, radius), random.choice([3, 4, 5, 6, 8]),
+        #                                 rotation=random.random() * 360, fill=color)
+    return imgordraw
+
+def predictthumbnailsize(originalsize, newsize):
+    """Figures out what size an image of originalsize would become if you used it to make a thumbnail of newsize.
+
+    Parameters:
+    originalsize (Tuple): Original size(duh).
+    newsize (Tuple): New size(duh).
+
+    Returns:
+    Tuple: Predicted thumbnail size."""
+    originalwidth, originalheight = originalsize
+    x, y = map(math.floor, newsize)
+    if x >= originalwidth and y >= originalheight:
+        return originalsize
+
+    def round_aspect(number, key):
+        return max(min(math.floor(number), math.ceil(number), key=key), 1)
+
+    # preserve aspect ratio
+    aspect = originalwidth / originalheight
+    if x / y >= aspect:
+        x = round_aspect(y * aspect, key=lambda n: abs(aspect - n / y))
+    else:
+        y = round_aspect(
+            x / aspect, key=lambda n: 0 if n == 0 else abs(aspect - x / n)
+        )
+    return x, y
+
+def multiline_textsize_but_it_works(text, font, maxwidth=1500):
+    # Should probably implement other parameters.
+    img = Image.new('RGBA',(maxwidth,1200),color=(0,0,0,0))
+    draw = ImageDraw.Draw(img)
+    draw.multiline_text((0,0), text, font=font, fill="black", align="center")
+
+    bbox = img.getbbox()
+    if bbox:
+        width = bbox[2]-bbox[0]
+        height = bbox[3]-bbox[1]
+        return width, height
+    else:
+        return 0,0
+
+def autobreakingtext(imgordraw, allowedwidth, xy, text, fill=None, font=None, anchor=None, spacing=4, align='left', direction=None, features=None, language=None, stroke_width=0, stroke_fill=None, embedded_color=False):
+    """Draws PIL text and adds line breaks whenever it gets too wide.
+
+    Parameters:
+    originalsize (Tuple): Original size(duh).
+    newsize (Tuple): New size(duh).
+
+    Returns:
+    Tuple: Predicted thumbnail size."""
+    if type(imgordraw) == Image.Image:
+        draw = ImageDraw.Draw(imgordraw)
+    else:
+        draw = imgordraw
+
+    # Attempts to draw each extra word with a space, and if it's too wide, does it with a line break.
+    # Only tries the last line, because otherwise, if a word is longer than the allowed width, every subsequent line
+    # would break the limit.
+    # Only splits with spaces and not with breaks to allow forced breaks.
+    # Only does spaces and not other whitespace because I'm lazy.
+    # If there's a forced line break followed by a word that's longer than the limit, that'll make the word before the
+    # line break get its own line even though it doesn't need it. But again, lazy.
+    textsplit = text.split(" ")
+    teststring = "" # What needs to pass Inspection
+    usingstring = "" # What will be drawn at the end
+    for word in textsplit:
+        tempteststring = teststring + " " + word
+        if multiline_textsize_but_it_works(tempteststring, font, maxwidth=allowedwidth+20)[0] <= allowedwidth:
+            teststring = tempteststring
+            usingstring += " " + word
+        else:
+            teststring = word
+            usingstring += "\n" + word
+
+    # Actually draw
+    draw.multiline_text(xy, usingstring, fill=fill, font=font)
+
+
+def piltowand(img):
+    stream = io.BytesIO()
+    img.save(stream, format="PNG")
+    return WandImage(blob=stream.getvalue())
+
+
+def wandtopil(img):
+    return Image.open(io.BytesIO(img.make_blob("png")))
+
+
+def enlargablethumbnail(img, size, resample=None):
+    """Same as PIL.Image.thumbnail, but can also grow to fit the required size."""
+    if img.size[0] > size[0] or img.size[1] > size[1]:
+        img.thumbnail(size, resample=resample)
+        return img
+    possiblemultipliers = sorted([
+        size[0]/img.size[0],
+        size[1]/img.size[1],
+    ])[::-1]
+    for multiplier in possiblemultipliers:
+        newwidth = round(img.size[0]*multiplier)
+        newheight = round(img.size[1]*multiplier)
+        if newwidth <= size[0] and newheight <= size[1]:
+            return img.resize((newwidth, newheight), resample=resample)
+
+def squarecrop(img):
+    """Adds extra size on both sides of an image to form a square."""
+    if img.width > img.height:
+        # These are separate so that one can be one pixel larger if it's an odd number
+        extrasizeononeside = (img.width-img.height)//2
+        extrasizeontheother = (img.width-img.height) - extrasizeononeside
+        img = img.crop((0, -extrasizeononeside, img.width, img.height+extrasizeontheother))
+    elif img.width < img.height:
+        # These are separate so that one can be one pixel larger if it's an odd number
+        extrasizeononeside = (img.height-img.width)//2
+        extrasizeontheother = (img.height-img.width) - extrasizeononeside
+        img = img.crop((-extrasizeononeside, 0, img.width+extrasizeontheother, img.height))
+    return img
+
+def textimage(text):
+    """Generates a simple square image with text in the middle."""
+    img = Image.new("RGBA", (1200, 1200))
+    draw = ImageDraw.Draw(img)
+    draw.multiline_text((5, 5), text)
+    img = croptocontent(img)
+    img = outline(img, 1, (0, 0, 0))
+    img = squarecrop(img)
+    return img
+
+if __name__ == "__main__":
+    # import numpy as np
+    # import cv2
+    #
+    # v = cv2.imread(r'S:\Code\django\clock\app\static\app\wallpapers\chosen\gen\hippo.png', 0)
+    # v = v.astype(np.uint)
+    # s = cv2.cvtColor(v, cv2.COLOR_BGR2GRAY)
+    # s = cv2.Laplacian(s, cv2.CV_16S, ksize=3)
+    # s = cv2.convertScaleAbs(s)
+    # cv2.imshow('nier',s)
+    #
+    # cv2.waitKey(0)
+    #
+    # import bezier
+    # nodes1 = np.asfortranarray([
+    #     [0.0, 0.5, 1.0],
+    #     [0.0, 1.0, 0.0],
+    # ])
+    # curve1 = bezier.Curve(nodes1, degree=2)
+    #
+    # nodes2 = np.asfortranarray([
+    # [0.0, 0.25, 0.5, 0.75, 1.0],
+    # [0.0, 2.0, -2.0, 2.0, 0.0],
+    # ])
+    # curve2 = bezier.Curve.from_nodes(nodes2)
+    # intersections = curve1.intersect(curve2)
+    # intersections
+    # np.asfortranarray([[0.31101776, 0.68898224, 0., 1.],
+    # [0.31101776, 0.68898224, 0., 1.]])
+    # s_vals = np.asfortranarray(intersections[0, :])
+    # points = curve1.evaluate_multi(s_vals)
+    #
+    # import seaborn
+    # import matplotlib.pyplot as plt
+    # seaborn.set()
+    # ax = curve1.plot(num_pts=256)
+    # _ = curve2.plot(num_pts=256, ax=ax)
+    # lines = ax.plot( points[0, :], points[1, :], marker = "o", linestyle = "None", color = "black")
+    # _ = ax.axis("scaled")
+    # _ = ax.set_xlim(-0.125, 1.125)
+    # _ = ax.set_ylim(-0.0625, 0.625)
+    # plt.show()
+    #
+    # nodes = np.asfortranarray([
+    #
+    #     [0.0, 0.625, 1.0],
+    #
+    #     [0.0, 0.5, 0.5],
+    #
+    # ])
+    #
+    # curve = bezier.Curve(nodes, degree=2)
+    # curve.plot(5)
+    # plt.show()
+    #exit()
+    img = Image.new("RGBA", (1200, 1200))
+    draw = ImageDraw.Draw(img)
+    font = ImageFont.truetype("segoescb.ttf", 100)
+    draw.multiline_text((5,5), "Q", font=font, fill=(255, 0,0)) # QWERTYUIOPqwertyuiop
+    img = croptocontent(img)
+    #img = outline(img, 1, (0, 0, 0))
+    directionalshading(img)
+    img.show()
+    exit()
+    path = r"S:\Code\django\clock\app\static\app\wallpapers\chosen\\"
+    imgname = random.choice(os.listdir(path))
+    img = Image.open(path + imgname).convert("RGBA")
+    #img = enlargablethumbnail(img, (10000,10000), Image.LANCZOS)
+    # # power = 8
+    # # img.thumbnail((2**power, 2**power))
+    #print(img.size)
+    #exit()
+    # allcolors = [(r,g,b) for r in range(0,256,4) for g in range(0,256,4) for b in range(0,256,4)]
+    # colors.showpalettecube(allcolors)
+    # colors.showpalettecube(allcolors, back=True)
+    #common = colors.getmostcommoncolors(img, 1)
+    common = colors.getmostrepresentativecolors(img)
+    img.show()
+    colors.showpalettecube(common)
+    colors.showpalettecube(common, back=True)
+    #colors.showpalette(colors.getmostrepresentativecolors(img, 0.5, 0.5), 1)
+    # repaint(img, lambda newimg, xy, size, color:
+    #         newimg.alpha_composite(
+    #             shadow(
+    #                 edgelight(
+    #                 (
+    #                     simpleshape
+    #                     (
+    #                         Image.new("RGBA", img.size),
+    #                         xy,
+    #                         size*2,
+    #                         color,
+    #                         SHAPE_DIAMOND,
+    #                         rotation=90
+    #                     )
+    #                 ),
+    #                 2
+    #             ),
+    #             2
+    #         )
+    # )).show()
