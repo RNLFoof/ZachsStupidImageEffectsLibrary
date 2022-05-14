@@ -272,7 +272,7 @@ def getmostrepresentativecolors(img, commonfraction=0.1, representativefraction=
 
     Returns:
     list: The most representative colors."""
-    from ZachsStupidImageEffectsLibrary.coolstuff import piltowand, wandtopil
+    from ZachsStupidImageLibrary.coolstuff import piltowand, wandtopil
 
     quantities = getcolorusage(img)
     totaldesired = img.width * img.height * representativefraction

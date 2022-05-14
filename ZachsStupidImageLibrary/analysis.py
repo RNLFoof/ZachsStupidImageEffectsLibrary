@@ -1,4 +1,4 @@
-from ZachsStupidImageEffectsLibrary.internal import getdistancestopoints
+from ZachsStupidImageLibrary.internal import getdistancestopoints
 
 
 def getallopaquepixels(img):
@@ -21,7 +21,7 @@ def getedgepixels(img):
 
     Returns:
     set: All opaque pixels right next to transparent ones."""
-    from ZachsStupidImageEffectsLibrary.coolstuff import inneroutline
+    from ZachsStupidImageLibrary.coolstuff import inneroutline
     inneroutlineimg = inneroutline(img, 1, (255, 0, 0), retonly=True)
     return getallopaquepixels(inneroutlineimg)
 
