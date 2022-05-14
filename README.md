@@ -1,6 +1,6 @@
 # Zach's Stupid Image Library
 
-Functions I made for a larger, stupider project. I figured it would make more sense to seperate them.
+Functions I made for a larger, stupider project. I figured it would make more sense to separate them.
 
 If you actually decide to use this:
 1) What? Are you stupid?
