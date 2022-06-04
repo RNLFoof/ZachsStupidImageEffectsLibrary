@@ -1,6 +1,7 @@
 import math
 import os
 import random
+from statistics import mean
 import numpy as np
 from PIL import Image, ImageChops, ImageMath, ImageFilter
 from PIL import ImageDraw
@@ -121,7 +122,8 @@ def inneroutline(img, radius, color, retonly=False, pattern=None):
     inneroutline = lowestoftwoalphaas(inneroutline, slightlylargerimg)
 
     # Convert the slightly larger img back to its original size
-    inneroutline.crop((1,1,inneroutline.width-1,inneroutline.height-1))
+    inneroutline = inneroutline.crop((1,1,inneroutline.width-1,inneroutline.height-1))
+    print(img.size, inneroutline.size)
 
     # Return
     if not retonly:
@@ -391,42 +393,171 @@ def shadingwrapper(img):
 def directionalshading(img):
     """Draws gradient-y shading based on direction from the light source. Does this by repeatedly drawing the largest
     still-possible shortest-distance lines from inside the structure to an outline along the outside."""
-    from ZachsStupidImageLibrary.analysis import getallopaquepixels, getedgepixels
+    from ZachsStupidImageLibrary.analysis import getallopaquepixels, getedgepixels, getcenterpixels
+
+    # Maybe don't force this?
+    #img = threshholdalpha(img, 127)
 
     # Get possible endpoints
-    endpoints = getedgepixels(img)
+    edgeendpoints = getedgepixels(img)
+    centerendpoints = getcenterpixels(img)
+    bothendpoints = centerendpoints | edgeendpoints
 
     # Get possible starting points
     startpoints = getallopaquepixels(img)
-    startpoints -= endpoints
+    #startpoints -= bothendpoints
 
     # Get potential lines
-    potentiallines = {}
-    for potentialline in getdistancestopoints(startpoints, endpoints):
-        potentiallines[potentialline.startpoint] = potentialline
+    edgepotentiallines = {}
+    centerpotentiallines = {}
+    for potentiallines, endpoints in [
+        (edgepotentiallines, edgeendpoints),
+        (centerpotentiallines, centerendpoints),
+    ]:
+        for potentialline in getdistancestopoints(startpoints, endpoints):
+            potentiallines[potentialline.startpoint] = potentialline
+    allpotentiallines = {**edgepotentiallines, **centerpotentiallines}
 
     # Draw along the longest potential lines
     shadingcolors = Image.new("LA", img.size)
     draw = ImageDraw.Draw(shadingcolors)
     n = 0
-    goalpoints = len(startpoints | endpoints)
+    goalpoints = len(startpoints | bothendpoints)
+    uncombinedpoints = {}
     while goalpoints*0.6 > len(getallopaquepixels(shadingcolors)) and n < 100:
         print(len(getallopaquepixels(shadingcolors)), goalpoints)
         # Get current longest
-        longest = -1
-        for startpoint in startpoints:
-            potentialline = potentiallines[startpoint]
-            longest = max(longest, potentialline.dis)
+        # longest = -1
+        # for startpoint in startpoints:
+        #     potentialline = edgepotentiallines[startpoint]
+        #     longest = max(longest, potentialline.dis)
+        #     potentialline = centerpotentiallines[startpoint]
+        #     longest = max(longest, potentialline.dis)
         # if longest <= 8:
         #     break
         # Draw on all of that length
         for startpoint in list(startpoints):
-            potentialline = potentiallines[startpoint]
-            if potentialline.dis == longest:
-                absolute = round(abs((potentialline.dir+135)%360-180)/180*255)
+            edgepotentialline = edgepotentiallines[startpoint]
+            centerpotentialline = centerpotentiallines[startpoint]
+            # Use whichever is longer because it will presumably be more accurate
+            if edgepotentialline.dis > centerpotentialline.dis:
+                potentialline = edgepotentialline
+                reversemaybe = 0
+            else:
+                potentialline = centerpotentialline
+                reversemaybe = 180
+            if True:# potentialline.dis == longest:
+                absolute = round(abs((potentialline.dir+135+reversemaybe)%360-180)/180*255)
                 using = absolute # round(absolute/255)*255
-                #draw.line((potentialline.startpoint, potentialline.endpoint), (using, 255))
-                draw.point(potentialline.startpoint, (using, 255))
+                #draw.line((potentialline.startpoint, potentialline.endpoint), (using, 2))
+                #draw.point(potentialline.startpoint, (using, 255))
+                difx = potentialline.startpoint[0]-potentialline.endpoint[0]
+                deltax = abs(difx)
+                dify = abs(potentialline.startpoint[1]-potentialline.endpoint[1])
+                deltay = abs(dify)
+                maxdelta = max(deltax, deltay)
+                for n in range(maxdelta+1):
+                    point = (
+                        round(potentialline.startpoint[0]-difx/maxdelta*n),
+                        round(potentialline.startpoint[1]-dify/maxdelta*n),
+                    )
+                    print(potentialline.startpoint, point, potentialline.endpoint)
+                    uncombinedpoints.setdefault(point, [])
+                    uncombinedpoints[point].append(using)
+                startpoints.remove(potentialline.startpoint)
+                # n += 1
+                # if n**0.5 == round(n**0.5):
+                #     img.alpha_composite(shadingcolors.convert("RGBA"))
+                #     img.show()
+        # Remove everything that's now filled in
+        #shadingcolorspoints = getallalphapoints(shadingcolors)
+        #print(potentialline.startpoint in shadingcolorspoints)
+        #startpoints -= getallalphapoints(shadingcolors)
+        #print(len(startpoints))
+        n += 1
+
+    for point, usings in uncombinedpoints.items():
+        draw.point(point, (round(mean(usings)), 255))
+
+    #shadingcolors = shadingcolors.convert("RGBA")
+    # for x in range(100):
+    #     blurryboy = shadingcolors.copy()
+    #     blurryboy = blurryboy.filter(ImageFilter.GaussianBlur)
+    #     blurryboy.alpha_composite(shadingcolors)
+    #     shadingcolors = blurryboy
+    shadingcolorsdata = shadingcolors.load()
+    for x in range(shadingcolors.width):
+        for y in range(shadingcolors.height):
+            if shadingcolorsdata[x,y][1] == 0:
+                pass
+
+    shadingcolors.show()
+    shadingcolors.split()[shadingcolors.getbands().index("A")].convert("RGBA").save("WACK.png")
+    shadingcolors.putalpha(img.split()[img.getbands().index("A")])
+    img.alpha_composite(shadingcolors.convert("RGBA"))
+    img.show()
+
+
+def metallicdirectionalshading(img):
+    """Draws gradient-y shading based on direction from the light source. Does this by repeatedly drawing the largest
+    still-possible shortest-distance lines from inside the structure to an outline along the outside."""
+    from ZachsStupidImageLibrary.analysis import getallopaquepixels, getedgepixels, getcenterpixels
+
+    # Maybe don't force this?
+    #img = threshholdalpha(img, 127)
+
+    # Get possible endpoints
+    edgeendpoints = getedgepixels(img)
+    centerendpoints = getcenterpixels(img)
+    bothendpoints = centerendpoints | edgeendpoints
+
+    # Get possible starting points
+    startpoints = getallopaquepixels(img)
+    #startpoints -= bothendpoints
+
+    # Get potential lines
+    edgepotentiallines = {}
+    centerpotentiallines = {}
+    for potentiallines, endpoints in [
+        (edgepotentiallines, edgeendpoints),
+        (centerpotentiallines, centerendpoints),
+    ]:
+        for potentialline in getdistancestopoints(startpoints, endpoints):
+            potentiallines[potentialline.startpoint] = potentialline
+    allpotentiallines = {**edgepotentiallines, **centerpotentiallines}
+
+    # Draw along the longest potential lines
+    shadingcolors = Image.new("LA", img.size)
+    draw = ImageDraw.Draw(shadingcolors)
+    n = 0
+    goalpoints = len(startpoints | bothendpoints)
+    while goalpoints*0.6 > len(getallopaquepixels(shadingcolors)) and n < 100:
+        print(len(getallopaquepixels(shadingcolors)), goalpoints)
+        # Get current longest
+        # longest = -1
+        # for startpoint in startpoints:
+        #     potentialline = edgepotentiallines[startpoint]
+        #     longest = max(longest, potentialline.dis)
+        #     potentialline = centerpotentiallines[startpoint]
+        #     longest = max(longest, potentialline.dis)
+        # if longest <= 8:
+        #     break
+        # Draw on all of that length
+        for startpoint in list(startpoints):
+            edgepotentialline = edgepotentiallines[startpoint]
+            centerpotentialline = centerpotentiallines[startpoint]
+            # Use whichever is longer because it will presumably be more accurate
+            if edgepotentialline.dis > centerpotentialline.dis:
+                potentialline = edgepotentialline
+                reversemaybe = 0
+            else:
+                potentialline = centerpotentialline
+                reversemaybe = 180
+            if True:# potentialline.dis == longest:
+                absolute = round(abs((potentialline.dir+135+reversemaybe)%360-180)/180*255)
+                using = absolute # round(absolute/255)*255
+                draw.line((potentialline.startpoint, potentialline.endpoint), (using, 2))
+                #draw.point(potentialline.startpoint, (using, 255))
                 startpoints.remove(potentialline.startpoint)
                 # n += 1
                 # if n**0.5 == round(n**0.5):
@@ -451,9 +582,10 @@ def directionalshading(img):
             if shadingcolorsdata[x,y][1] == 0:
                 pass
 
-
     shadingcolors.putalpha(img.split()[img.getbands().index("A")])
+    shadingcolors.show()
     img.alpha_composite(shadingcolors.convert("RGBA"))
+    img.show()
 
 def godeepdreamyourself(img, max_dim=None, steps=100):
     """A lazy wrapper for something made by somebody cooler than me."""
@@ -942,8 +1074,8 @@ if __name__ == "__main__":
     #exit()
     img = Image.new("RGBA", (1200, 1200))
     draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype("segoescb.ttf", 100)
-    draw.multiline_text((5,5), "Q", font=font, fill=(255, 0,0)) # QWERTYUIOPqwertyuiop
+    font = ImageFont.truetype("segoescb.ttf", 120)
+    draw.multiline_text((5,5), "QBR", font=font, fill=(255, 0,0)) # QWERTYUIOPqwertyuiop
     img = croptocontent(img)
     #img = outline(img, 1, (0, 0, 0))
     directionalshading(img)

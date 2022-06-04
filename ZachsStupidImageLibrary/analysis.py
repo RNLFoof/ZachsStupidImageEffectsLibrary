@@ -1,3 +1,5 @@
+from PIL import ImageDraw
+
 from ZachsStupidImageLibrary.internal import getdistancestopoints
 
 
@@ -38,32 +40,131 @@ def getcenterpixels(img):
 
     Returns:
     set: All opaque pixels right next to transparent ones."""
+    # Gets pixels only touching one other pixel
+    # def getlineendpixels(pixels):
+    #     for pixel in pixels:
+    #         count = 0
+    #         for surroundingpixel in getsurroundingpixels(pixel):
+    #             if surroundingpixel in pixels:
+    #                 count += 1
+    #                 if count >= 2:
+    #                     break
+    #         else:
+    #             yield pixel
+
+    def getlineendpixels(pixels):
+        for pixel in pixels:
+            left = False
+            right = False
+            up = False
+            down = False
+            count = 0
+
+            for surroundingpixel in getsurroundingpixels(pixel):
+                if surroundingpixel in pixels:
+                    px, py = pixel
+                    spx, spy = surroundingpixel
+
+                    left = left or spx == px-1
+                    right = right or spx == px+1
+                    if left and right:
+                        break
+
+                    up = up or spy == py-1
+                    down = down or spy == py+1
+                    if up and down:
+                        break
+
+
+                    count += 1
+                    if count >= 5:
+                        break
+            else:
+                yield pixel
+
+    def getnearlykissingpixels(pixels):
+        for pixel in pixels:
+            left = False
+            right = False
+            up = False
+            down = False
+            count = 0
+
+            for surroundingpixel in getsurroundingpixels(pixel):
+                if surroundingpixel in pixels:
+                    px, py = pixel
+                    spx, spy = surroundingpixel
+
+                    left = left or spx == px-1
+                    right = right or spx == px+1
+
+                    up = up or spy == py-1
+                    down = down or spy == py+1
+
+
+                    # count += 1
+                    # if count >= 3:
+                    #     break
+            else:
+                yield pixel
+
+    def getsurroundingpixels(pixel):
+        x,y = pixel
+        for xplus in range(-1, 2):
+            for yplus in range(-1, 2):
+                check = (x+xplus, y+yplus)
+                if check != pixel:
+                    yield check
+
     distancestoedges = getdistancestoedges(img)
-    d = {}
-    for distancetoedges in distancestoedges:
-        d.setdefault(distancetoedges.dis, [])
-        d[distancetoedges.dis].append(distancetoedges)
+    distancestodteobjects = {}
+    draw = ImageDraw.Draw(img)
+    for distancetoedge in distancestoedges:
+        distancestodteobjects.setdefault(distancetoedge.dis, [])
+        distancestodteobjects[distancetoedge.dis].append(distancetoedge)
+        draw.point(distancetoedge.startpoint, (255, 255, 0))
+    img.show()
 
     selected = set()
     avoid = set()
-    for k in sorted(list(d.keys())):
-        i = d[k]
-        for distancetoedges in i:
-            pendingselected = set()
-            pendingavoid = set()
-
+    for n, distance in enumerate(sorted(list(distancestodteobjects.keys()))[::-1]):
+        distancestoedges = distancestodteobjects[distance]
+        pendingselected = set()
+        pendingavoid = set()
+        for distancetoedges in distancestoedges:
             x, y = distancetoedges.startpoint
             touching = 0
-            for xplus in range(-1, 2):
-                for yplus in range(-1, 2):
-                    check = (x+xplus, y+yplus)
-                    if check in selected or check in avoid:
-                        touching += 1
+            for check in getsurroundingpixels(distancetoedges.startpoint):
+                if check in selected or check in avoid:
+                    touching += 1
             if touching >= 1:
                 pendingavoid.add((x, y))
             else:
                 pendingselected.add((x, y))
 
+        selected |= pendingselected
+        avoid |= pendingavoid
+
+    for n, distance in enumerate(sorted(list(distancestodteobjects.keys()))[::-1]):
+        distancestoedges = distancestodteobjects[distance]
+        lineendpixels = list(getlineendpixels(selected))
+
+        extras = set()
+        for distancetoedges in distancestoedges:
+            if any(sp in lineendpixels for sp in getsurroundingpixels(distancetoedges.startpoint)):
+                extras.add(distancetoedges.startpoint)
+
+        selected |= extras
+        for pixel in selected:
+            draw.point(pixel, (0, 0, 255))
+        for pixel in extras:
+            draw.point(pixel, (255, 0, 0))
+        for pixel in lineendpixels:
+            draw.point(pixel, (0, 255, 0))
+        if n % 10 == 0:
+            img.show()
+    img.save("ffWACK.png")
+    return selected
 
 
 def getdistancestoedges(img):
@@ -76,6 +177,12 @@ def getdistancestoedges(img):
     list: List of objects indicating the closest transparent pixel to each non-transparent pixel."""
     # Get possible endpoints
     endpoints = getedgepixels(img)
+    draw = ImageDraw.Draw(img)
+    #
+    # for pixel in endpoints:
+    #     draw.point(pixel, (0, 0, 0))
+    #
+    # img.show()
 
     # Get possible starting points
     startpoints = getallopaquepixels(img)
