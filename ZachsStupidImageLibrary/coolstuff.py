@@ -1020,7 +1020,7 @@ def textimage(text):
     return img
 
 
-def dynamiclysizedtextimage(text, size, font=None):
+def dynamiclysizedtextimage(text, size, font=None, fill="black"):
     """Generates an image with text whose lines are resized such that the longer lines are smaller."""
     width, height = size
     textimg = Image.new("RGBA", size)
@@ -1049,7 +1049,7 @@ def dynamiclysizedtextimage(text, size, font=None):
 
         textlineimg = Image.new("RGBA", (width * 18, height * 4))
         textlinedraw = ImageDraw.Draw(textlineimg)
-        textlinedraw.text((textlineimg.size[0] // 2, textlineimg.size[1] // 2), tld["s"], font=font, fill="black",
+        textlinedraw.text((textlineimg.size[0] // 2, textlineimg.size[1] // 2), tld["s"], font=font, fill=fill,
                           align="center")
         textlineimg = croptocontent(textlineimg)
         textlineimg.thumbnail((width, roomremaining / spaceforxlinesrequired // currentlinedivider),
