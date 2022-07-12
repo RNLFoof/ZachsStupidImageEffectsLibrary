@@ -1,7 +1,7 @@
 import math
 import os
 import random
-from re import match
+from re import match, IGNORECASE
 from statistics import mean
 import numpy as np
 from PIL import Image, ImageChops, ImageMath, ImageFilter
@@ -1027,11 +1027,11 @@ def dynamiclysizedtextimage(text, size, font=None):
 
     # Set up the lines
     textlinedata = []
-    for pos, textline in enumerate(text):
+    for pos, textline in enumerate(text.split("\n")):
         textlinedata.append({
             "s": textline,
             "pos": pos,
-            "baby": match(r"^(\s|-|of|or|in|my|o|o'|the|\.|mr|mrs|\w{,2}\.)*$", textline) is not None
+            "baby": match(r"^(\s|-|of|or|in|my|o|o'|the|\.|mr|mrs|\w{,2}\.)*$", textline, flags=IGNORECASE) is not None
         })
     textlinedata.sort(key=lambda x: -len(x["s"]))
     textlinedata.sort(key=lambda x: -x["baby"])
