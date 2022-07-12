@@ -1,6 +1,7 @@
 import math
 import os
 import random
+from re import match
 from statistics import mean
 import numpy as np
 from PIL import Image, ImageChops, ImageMath, ImageFilter
@@ -1007,6 +1008,7 @@ def squarecrop(img):
         img = img.crop((-extrasizeononeside, 0, img.width+extrasizeontheother, img.height))
     return img
 
+
 def textimage(text):
     """Generates a simple square image with text in the middle."""
     img = Image.new("RGBA", (1200, 1200))
@@ -1016,6 +1018,58 @@ def textimage(text):
     img = outline(img, 1, (0, 0, 0))
     img = squarecrop(img)
     return img
+
+
+def dynamiclysizedtextimage(text, size, font=None):
+    """Generates an image with text whose lines are resized such that the longer lines are smaller."""
+    width, height = size
+    textimg = Image.new("RGBA", size)
+
+    # Set up the lines
+    textlinedata = []
+    for pos, textline in enumerate(text):
+        textlinedata.append({
+            "s": textline,
+            "pos": pos,
+            "baby": match(r"^(\s|-|of|or|in|my|o|o'|the|\.|mr|mrs|\w{,2}\.)*$", textline) is not None
+        })
+    textlinedata.sort(key=lambda x: -len(x["s"]))
+    textlinedata.sort(key=lambda x: -x["baby"])
+
+    # Generate thumbnails
+    roomtaken = 0
+    buildup = {}
+    normallinesremaining = len(list(filter(lambda x: not x["baby"], textlinedata)))
+    babylinesremaining = len(textlinedata) - normallinesremaining
+    babylinedivider = 3
+    for n, tld in enumerate(textlinedata):
+        currentlinedivider = babylinedivider if tld["baby"] else 1
+        roomremaining = height - roomtaken
+        spaceforxlinesrequired = normallinesremaining + (babylinedivider / babylinedivider)
+
+        textlineimg = Image.new("RGBA", (width * 18, height * 4))
+        textlinedraw = ImageDraw.Draw(textlineimg)
+        textlinedraw.text((textlineimg.size[0] // 2, textlineimg.size[1] // 2), tld["s"], font=font, fill="black",
+                          align="center")
+        textlineimg = croptocontent(textlineimg)
+        textlineimg.thumbnail((width, roomremaining / spaceforxlinesrequired // currentlinedivider),
+                              resample=Image.LANCZOS)
+
+        buildup[tld["pos"]] = textlineimg
+        roomtaken += textlineimg.size[1]
+        if tld["baby"]:
+            babylinesremaining -= 1
+        else:
+            normallinesremaining -= 1
+
+    # Combine them
+    drawaty = 0
+    for n in range(len(buildup)):
+        textlineimg = buildup[n]
+        textimg.paste(textlineimg, (abs(textlineimg.size[0] - textimg.size[0]) // 2, drawaty))
+        drawaty += textlineimg.size[1] + 5
+
+    return textimg
 
 if __name__ == "__main__":
     # import numpy as np
