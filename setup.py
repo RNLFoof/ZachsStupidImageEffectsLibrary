@@ -5,6 +5,7 @@ with open("README.md", 'r') as f:
 
 setup(
    name='ZachsStupidImageLibrary',
+   python_requires='>=3.10',
    version='1.0',
    description='Beware',
    license="MIT",
