@@ -3,6 +3,8 @@ import os
 import random
 from re import match, IGNORECASE
 from statistics import mean
+from typing import Iterable
+
 import numpy as np
 from PIL import Image, ImageChops, ImageMath, ImageFilter
 from PIL import ImageDraw
@@ -1020,7 +1022,7 @@ def textimage(text):
     return img
 
 
-def dynamiclysizedtextimage(text, size, font=None, fill="black"):
+def dynamiclysizedtextimage(text: str, size: tuple[int, int], font=None, fill="black"):
     """Generates an image with text whose lines are resized such that the longer lines are smaller."""
     width, height = size
     textimg = Image.new("RGBA", size)
@@ -1035,6 +1037,7 @@ def dynamiclysizedtextimage(text, size, font=None, fill="black"):
         })
     textlinedata.sort(key=lambda x: -len(x["s"]))
     textlinedata.sort(key=lambda x: -x["baby"])
+    print(textlinedata)
 
     # Generate thumbnails
     roomtaken = 0
@@ -1071,7 +1074,43 @@ def dynamiclysizedtextimage(text, size, font=None, fill="black"):
 
     return textimg
 
+
+def split_image():
+    pass
+
+
+def shift_hue_by(image: Image, by: int) -> Image:
+    image = image.convert("HSV")
+    h, s, v = image.split()
+    h = Image.eval(h, lambda x: (x+by) % 255)
+    return Image.merge("HSV", (h, s, v))
+
+def shift_hue_towards(image: Image, towards: int) -> Image:
+    image = image.convert("HSV")
+    average_hue = colors.average_color(image.getchannel("H"))
+    by = towards - average_hue
+    return shift_hue_by(image, by)
+
+def shift_bands_by(image: Image, by: Iterable[int]) -> Image:
+    bands = []
+    for index, band in enumerate(image.split()):
+        if image.mode[index] == "H":  # Pretty sure H is the only one that "loops"?
+            band = Image.eval(band, lambda x: (x+by[index]) % 255)
+            print("WOW")
+        else:
+            band = Image.eval(band, lambda x: min(255, max(0, (x + by[index]))))
+            print("OW")
+        bands.append(band)
+    return Image.merge(image.mode, bands)
+
+def shift_bands_towards(image: Image, towards: Iterable[int]) -> Image:
+    print("Hi")
+    average_color = colors.average_color(image)
+    return shift_bands_by(image, [x[0]-x[1] for x in zip(towards, average_color)])
+
 if __name__ == "__main__":
+    dynamiclysizedtextimage("test\nertdjhnguerdhjguierjhuijejsrih", (50, 50)).show()
+    exit()
     # import numpy as np
     # import cv2
     #
@@ -1149,8 +1188,8 @@ if __name__ == "__main__":
     #common = colors.getmostcommoncolors(img, 1)
     common = colors.getmostrepresentativecolors(img)
     img.show()
-    colors.showpalettecube(common)
-    colors.showpalettecube(common, back=True)
+    colors.show_palette_cube(common)
+    colors.show_palette_cube(common, back=True)
     #colors.showpalette(colors.getmostrepresentativecolors(img, 0.5, 0.5), 1)
     # repaint(img, lambda newimg, xy, size, color:
     #         newimg.alpha_composite(
