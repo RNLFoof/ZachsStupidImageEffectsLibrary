@@ -3,14 +3,26 @@ from PIL import ImageDraw
 from ZachsStupidImageLibrary.internal import getdistancestopoints
 
 
-def getallopaquepixels(img):
+def get_all_opaque_pixels(img):
     """Returns a set of all pixels whose alpha is larger than zero."""
-    alphaband = img.split()[img.getbands().index("A")]
-    alphabandloaded = alphaband.load()
+    alpha_band = img.split()[img.getbands().index("A")]
+    alpha_band_loaded = alpha_band.load()
     points = set()
     for x in range(img.width):
         for y in range(img.height):
-            if alphabandloaded[(x, y)] > 0:
+            if alpha_band_loaded[(x, y)] > 0:
+                points.add((x, y))
+    return points
+
+
+def get_all_transparent_pixels(img):
+    """Returns a set of all pixels whose alpha is zero."""
+    alpha_band = img.split()[img.getbands().index("A")]
+    alpha_band_loaded = alpha_band.load()
+    points = set()
+    for x in range(img.width):
+        for y in range(img.height):
+            if alpha_band_loaded[(x, y)] == 0:
                 points.add((x, y))
     return points
 
@@ -25,7 +37,7 @@ def getedgepixels(img):
     set: All opaque pixels right next to transparent ones."""
     from ZachsStupidImageLibrary.coolstuff import inneroutline
     inneroutlineimg = inneroutline(img, 1, (255, 0, 0), retonly=True)
-    return getallopaquepixels(inneroutlineimg)
+    return get_all_opaque_pixels(inneroutlineimg)
 
 
 def getcenterpixels(img):
@@ -185,6 +197,6 @@ def getdistancestoedges(img):
     # img.show()
 
     # Get possible starting points
-    startpoints = getallopaquepixels(img)
+    startpoints = get_all_opaque_pixels(img)
 
     return getdistancestopoints(startpoints, endpoints)

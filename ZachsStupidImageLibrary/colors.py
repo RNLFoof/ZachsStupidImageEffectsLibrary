@@ -8,6 +8,7 @@ from PIL import ImageShow
 
 import random as rando
 from statistics import mean
+import numpy
 
 
 def convert1to255(col):
@@ -121,7 +122,7 @@ def color_mind(inp):
     return ret
 
 
-def average_color(colors: Union[Iterator | Image.Image]) -> Tuple[int, ]:
+def average_color(colors: Union[Iterator | Image.Image], mode: str = "RGBA", alpha: Image.Image = None) -> Tuple[int, ]:
     """Averages out several colors.
 
     Parameters:
@@ -129,16 +130,62 @@ def average_color(colors: Union[Iterator | Image.Image]) -> Tuple[int, ]:
 
     Returns:
     tuple: Average color."""
+
     ret = []
-    print(type(colors))
     if isinstance(colors, Image.Image):
+        mode = colors.getbands()
         colors = list(colors.getdata())
+    mode = mode[:len(colors[0])]
+
     if hasattr(colors[0],'__iter__'):
-        for index in range(len(colors[0])):
-            ret.append(round(mean(x[index] for x in colors)))
+        weights = None
+        a_band = None
+        if alpha is not None:
+            alpha_data = alpha.getdata()
+            weights = [color / 255 for color in alpha_data]
+        elif "A" in mode:
+            a_band = mode.find("A")
+            weights = [color[a_band] / 255 for color in colors]
+
+        for index, band in zip(range(len(colors[0])), mode):
+            if band == "H":
+                ret.append(average_hue(colors))
+            else:
+                if weights is not None:
+                    print(set(weights))
+                    ret.append(numpy.average(
+                        list(x[index] for x in colors),
+                        weights=weights
+                    ))
+                else:
+                    ret.append(round(mean(x[index] for x in colors)))
+
         return tuple(ret)
     else:
         return mean(colors)
+
+def average_hue(colors: Union[Iterator | Image.Image]) -> int:
+    """Gets the average hue from several colors. Weighs pixels differently based on their saturation, value, and alpha.
+
+    Parameters:
+    colors (list | PIL.Image): List of color tuples, or an image.
+
+    Returns:
+    int: Average hue."""
+    if isinstance(colors, Image.Image):
+        colors = numpy.hstack(colors.convert("HSV").getdata(), colors.getchannel('A').getdata())
+
+    if hasattr(colors[0], '__iter__'):
+        weights = []
+        for color in colors:
+            weights.append(numpy.prod(list(band/255 for band in color[1:])))
+        return numpy.average(
+            list(color[0] for color in colors),
+            weights=weights
+        )
+    else:
+        return mean(colors)
+
 
 def show_palette(cols, size=64):
     img = Image.new("RGB", (size * len(cols), size))

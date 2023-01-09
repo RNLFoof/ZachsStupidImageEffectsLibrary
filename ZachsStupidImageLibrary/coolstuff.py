@@ -396,7 +396,7 @@ def shadingwrapper(img):
 def directionalshading(img):
     """Draws gradient-y shading based on direction from the light source. Does this by repeatedly drawing the largest
     still-possible shortest-distance lines from inside the structure to an outline along the outside."""
-    from ZachsStupidImageLibrary.analysis import getallopaquepixels, getedgepixels, getcenterpixels
+    from ZachsStupidImageLibrary.analysis import get_all_opaque_pixels, getedgepixels, getcenterpixels
 
     # Maybe don't force this?
     #img = threshholdalpha(img, 127)
@@ -407,7 +407,7 @@ def directionalshading(img):
     bothendpoints = centerendpoints | edgeendpoints
 
     # Get possible starting points
-    startpoints = getallopaquepixels(img)
+    startpoints = get_all_opaque_pixels(img)
     #startpoints -= bothendpoints
 
     # Get potential lines
@@ -427,8 +427,8 @@ def directionalshading(img):
     n = 0
     goalpoints = len(startpoints | bothendpoints)
     uncombinedpoints = {}
-    while goalpoints*0.6 > len(getallopaquepixels(shadingcolors)) and n < 100:
-        print(len(getallopaquepixels(shadingcolors)), goalpoints)
+    while goalpoints*0.6 > len(get_all_opaque_pixels(shadingcolors)) and n < 100:
+        print(len(get_all_opaque_pixels(shadingcolors)), goalpoints)
         # Get current longest
         # longest = -1
         # for startpoint in startpoints:
@@ -504,7 +504,7 @@ def directionalshading(img):
 def metallicdirectionalshading(img):
     """Draws gradient-y shading based on direction from the light source. Does this by repeatedly drawing the largest
     still-possible shortest-distance lines from inside the structure to an outline along the outside."""
-    from ZachsStupidImageLibrary.analysis import getallopaquepixels, getedgepixels, getcenterpixels
+    from ZachsStupidImageLibrary.analysis import get_all_opaque_pixels, getedgepixels, getcenterpixels
 
     # Maybe don't force this?
     #img = threshholdalpha(img, 127)
@@ -515,7 +515,7 @@ def metallicdirectionalshading(img):
     bothendpoints = centerendpoints | edgeendpoints
 
     # Get possible starting points
-    startpoints = getallopaquepixels(img)
+    startpoints = get_all_opaque_pixels(img)
     #startpoints -= bothendpoints
 
     # Get potential lines
@@ -534,8 +534,8 @@ def metallicdirectionalshading(img):
     draw = ImageDraw.Draw(shadingcolors)
     n = 0
     goalpoints = len(startpoints | bothendpoints)
-    while goalpoints*0.6 > len(getallopaquepixels(shadingcolors)) and n < 100:
-        print(len(getallopaquepixels(shadingcolors)), goalpoints)
+    while goalpoints*0.6 > len(get_all_opaque_pixels(shadingcolors)) and n < 100:
+        print(len(get_all_opaque_pixels(shadingcolors)), goalpoints)
         # Get current longest
         # longest = -1
         # for startpoint in startpoints:
@@ -1096,15 +1096,12 @@ def shift_bands_by(image: Image, by: Iterable[int]) -> Image:
     for index, band in enumerate(image.split()):
         if image.mode[index] == "H":  # Pretty sure H is the only one that "loops"?
             band = Image.eval(band, lambda x: (x+by[index]) % 255)
-            print("WOW")
         else:
             band = Image.eval(band, lambda x: min(255, max(0, (x + by[index]))))
-            print("OW")
         bands.append(band)
     return Image.merge(image.mode, bands)
 
 def shift_bands_towards(image: Image, towards: Iterable[int]) -> Image:
-    print("Hi")
     average_color = colors.average_color(image)
     return shift_bands_by(image, [x[0]-x[1] for x in zip(towards, average_color)])
 
