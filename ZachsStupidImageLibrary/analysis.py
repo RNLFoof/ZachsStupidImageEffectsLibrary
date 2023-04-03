@@ -219,7 +219,7 @@ def get_edge_points(img: Image):
                 if addable in edge_points:
                     continue
 
-                # Is it next to the infinite transparent void outside of the image?
+                # Is it next to the infinite transparent void outside the image?
                 if 0 >= addable[0] or img.width <= addable[0] or 0 >= addable[1] or img.height <= addable[1]:
                     edge_points.add(addable)
                     continue
