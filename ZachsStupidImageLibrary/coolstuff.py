@@ -120,8 +120,10 @@ def inneroutline(img, radius, color, retonly=False, pattern=None):
     two = Image.eval(thinblackoutline, lambda x: 255 - x)  # Thin white outline
     two = Image.merge("RGBA", (two, two, two, two))
 
-    # Apply the outline to this line, get only the lowest alphas
+    # Apply the outline to this line
     inneroutline = outline(two, radius, color, retonly=True, pattern=pattern)
+
+    # Get only the lowest alphas in order to cut out anything that isn't overlapping the original image
     inneroutline = lowestoftwoalphaas(inneroutline, slightlylargerimg)
 
     # Convert the slightly larger img back to its original size

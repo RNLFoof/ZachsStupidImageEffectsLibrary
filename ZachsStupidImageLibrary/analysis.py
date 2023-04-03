@@ -1,4 +1,5 @@
 from PIL import ImageDraw
+from PIL.Image import Image
 
 from ZachsStupidImageLibrary.internal import getdistancestopoints
 
@@ -200,3 +201,36 @@ def getdistancestoedges(img):
     startpoints = get_all_opaque_pixels(img)
 
     return getdistancestopoints(startpoints, endpoints)
+
+
+def get_edge_points(img: Image):
+    from ZachsStupidImageLibrary.coolstuff import roundalpha
+    img = roundalpha(img)
+    edge_pixels = getedgepixels(img)
+    transparent_pixels = get_all_transparent_pixels(img)
+    edge_points = set()
+    for edge_pixel in edge_pixels:
+        for x_corner in [-1, 1]:
+            for y_corner in [-1, 1]:
+                addable_offset = (0.5+x_corner/2, 0.5+y_corner/2)
+                addable = tuple([int(ep+ao) for ep, ao in zip(edge_pixel, addable_offset)])
+
+                # No need to waste processing time if this one is already in there
+                if addable in edge_points:
+                    continue
+
+                # Is it next to the infinite transparent void outside of the image?
+                if 0 >= addable[0] or img.width <= addable[0] or 0 >= addable[1] or img.height <= addable[1]:
+                    edge_points.add(addable)
+                    continue
+
+                # The main man
+                for checking_offset in [
+                    (x_corner, 0),
+                    (x_corner, y_corner),
+                    (0, y_corner),
+                ]:
+                    if tuple([ep+co for ep, co in zip(edge_pixel, checking_offset)]) in transparent_pixels:
+                        edge_points.add(addable)
+                        break
+    return edge_points
