@@ -1,7 +1,7 @@
 from PIL import ImageDraw
 from PIL.Image import Image
 
-from ZachsStupidImageLibrary.internal import getdistancestopoints
+from zsil.internal import getdistancestopoints
 
 
 def get_all_opaque_pixels(img):
@@ -36,7 +36,7 @@ def getedgepixels(img):
 
     Returns:
     set: All opaque pixels right next to transparent ones."""
-    from ZachsStupidImageLibrary.coolstuff import inneroutline
+    from zsil.coolstuff import inneroutline
     inneroutlineimg = inneroutline(img, 1, (255, 0, 0), retonly=True)
     return get_all_opaque_pixels(inneroutlineimg)
 
@@ -204,7 +204,7 @@ def getdistancestoedges(img):
 
 
 def get_edge_points(img: Image):
-    from ZachsStupidImageLibrary.coolstuff import roundalpha
+    from zsil.coolstuff import roundalpha
     img = roundalpha(img)
     edge_pixels = getedgepixels(img)
     transparent_pixels = get_all_transparent_pixels(img)

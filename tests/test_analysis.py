@@ -1,6 +1,6 @@
 from PIL import Image
 
-from ZachsStupidImageLibrary.analysis import get_edge_points
+from zsil.analysis import get_edge_points
 
 
 def test_get_edge_points_at_image_border():

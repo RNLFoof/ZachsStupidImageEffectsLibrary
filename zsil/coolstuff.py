@@ -9,8 +9,8 @@ import numpy as np
 from PIL import Image, ImageChops, ImageMath, ImageFilter
 from PIL import ImageDraw
 
-from ZachsStupidImageLibrary import colors
-from ZachsStupidImageLibrary.internal import lengthdir_x, lengthdir_y, getdistancestopoints
+from zsil import colors
+from zsil.internal import lengthdir_x, lengthdir_y, getdistancestopoints
 
 import io
 
@@ -398,7 +398,7 @@ def shadingwrapper(img):
 def directionalshading(img):
     """Draws gradient-y shading based on direction from the light source. Does this by repeatedly drawing the largest
     still-possible shortest-distance lines from inside the structure to an outline along the outside."""
-    from ZachsStupidImageLibrary.analysis import get_all_opaque_pixels, getedgepixels, getcenterpixels
+    from zsil.analysis import get_all_opaque_pixels, getedgepixels, getcenterpixels
 
     # Maybe don't force this?
     #img = threshholdalpha(img, 127)
@@ -506,7 +506,7 @@ def directionalshading(img):
 def metallicdirectionalshading(img):
     """Draws gradient-y shading based on direction from the light source. Does this by repeatedly drawing the largest
     still-possible shortest-distance lines from inside the structure to an outline along the outside."""
-    from ZachsStupidImageLibrary.analysis import get_all_opaque_pixels, getedgepixels, getcenterpixels
+    from zsil.analysis import get_all_opaque_pixels, getedgepixels, getcenterpixels
 
     # Maybe don't force this?
     #img = threshholdalpha(img, 127)
