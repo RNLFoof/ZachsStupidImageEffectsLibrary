@@ -200,3 +200,24 @@ def getdistancestoedges(img):
     startpoints = get_all_opaque_pixels(img)
 
     return getdistancestopoints(startpoints, endpoints)
+
+
+def pixelfilter(function, img, imgdata=None):
+    """Returns the coordinates of all pixels that match a function.
+
+    Parameters:
+    function (function): A function that takes a tuple as input and returns a boolean. Determines what pixels to return.
+    img (PIL.Image): How many pixels out the outline stretches.
+    imgdata (PIL.PixelAccess): The result of img.load(), in case you had it loaded already. Generated if not provided.
+
+    Yields:
+    tuple: All coordinates to which function returned true."""
+    # Create imgdata if it's not provided
+    if imgdata is None:
+        imgdata = img.load()
+
+    # Gee I fuckin' wonder
+    for x in range(img.size[0]):
+        for y in range(img.size[1]):
+            if function(imgdata[x, y]):
+                yield x, y
