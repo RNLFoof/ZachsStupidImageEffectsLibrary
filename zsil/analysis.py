@@ -40,7 +40,7 @@ def get_all_transparent_pixels(image: Image) -> set[tuple[int, int]]:
     return points
 
 
-def get_edge_pixels(image: Image):
+def get_edge_pixels(image: Image) -> set[tuple[int, int]]:
     """Returns a set of all opaque pixels right next to transparent ones.
 
     Parameters:
@@ -53,7 +53,7 @@ def get_edge_pixels(image: Image):
     return get_all_opaque_pixels(inner_outline_image)
 
 
-def get_center_pixels(image: Image):
+def get_center_pixels(image: Image) -> set[tuple[int, int]]:
     """Returns a set of pixels that form a line along the "center" of opaque sections. Calculated like this:
     - Get edge distance for all opaque pixels
     - All pixels that equal the largest distance are selected
