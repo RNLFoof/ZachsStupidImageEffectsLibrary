@@ -1,11 +1,8 @@
-
-.idea/ZachsStupidImageLibrary.iml
-.idea/inspectionProfiles/profiles_settings.xml
-.idea/misc.xml
-.idea/modules.xml
-.idea/vcs.xml
+.idea/
 *.pyc
 *.iml
 zsil/ffWACK.png
 zsil/fWACK.png
 zsil/WACK.png
+
+
