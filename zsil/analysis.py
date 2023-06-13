@@ -65,6 +65,7 @@ def get_center_pixels(image: Image):
 
     Returns:
     set: All opaque pixels right next to transparent ones."""
+
     # Gets pixels only touching one other pixel
     # def getlineendpixels(pixels):
     #     for pixel in pixels:
@@ -90,16 +91,15 @@ def get_center_pixels(image: Image):
                     px, py = pixel
                     spx, spy = surroundingpixel
 
-                    left = left or spx == px-1
-                    right = right or spx == px+1
+                    left = left or spx == px - 1
+                    right = right or spx == px + 1
                     if left and right:
                         break
 
-                    up = up or spy == py-1
-                    down = down or spy == py+1
+                    up = up or spy == py - 1
+                    down = down or spy == py + 1
                     if up and down:
                         break
-
 
                     count += 1
                     if count >= 5:
@@ -120,12 +120,11 @@ def get_center_pixels(image: Image):
                     px, py = pixel
                     spx, spy = surroundingpixel
 
-                    left = left or spx == px-1
-                    right = right or spx == px+1
+                    left = left or spx == px - 1
+                    right = right or spx == px + 1
 
-                    up = up or spy == py-1
-                    down = down or spy == py+1
-
+                    up = up or spy == py - 1
+                    down = down or spy == py + 1
 
                     # count += 1
                     # if count >= 3:
@@ -134,10 +133,10 @@ def get_center_pixels(image: Image):
                 yield pixel
 
     def getsurroundingpixels(pixel):
-        x,y = pixel
+        x, y = pixel
         for xplus in range(-1, 2):
             for yplus in range(-1, 2):
-                check = (x+xplus, y+yplus)
+                check = (x + xplus, y + yplus)
                 if check != pixel:
                     yield check
 
@@ -224,8 +223,8 @@ def get_edge_points(image: Image):
     for edge_pixel in edge_pixels:
         for x_corner in [-1, 1]:
             for y_corner in [-1, 1]:
-                addable_offset = (0.5+x_corner/2, 0.5+y_corner/2)
-                addable = tuple([int(ep+ao) for ep, ao in zip(edge_pixel, addable_offset)])
+                addable_offset = (0.5 + x_corner / 2, 0.5 + y_corner / 2)
+                addable = tuple([int(ep + ao) for ep, ao in zip(edge_pixel, addable_offset)])
 
                 # No need to waste processing time if this one is already in there
                 if addable in edge_points:
@@ -242,7 +241,28 @@ def get_edge_points(image: Image):
                     (x_corner, y_corner),
                     (0, y_corner),
                 ]:
-                    if tuple([ep+co for ep, co in zip(edge_pixel, checking_offset)]) in transparent_pixels:
+                    if tuple([ep + co for ep, co in zip(edge_pixel, checking_offset)]) in transparent_pixels:
                         edge_points.add(addable)
                         break
     return edge_points
+
+
+def pixel_filter(function, img, imgdata=None):
+    """Returns the coordinates of all pixels that match a function.
+
+    Parameters:
+    function (function): A function that takes a tuple as input and returns a boolean. Determines what pixels to return.
+    img (PIL.Image): How many pixels out the outline stretches.
+    imgdata (PIL.PixelAccess): The result of img.load(), in case you had it loaded already. Generated if not provided.
+
+    Yields:
+    tuple: All coordinates to which function returned true."""
+    # Create imgdata if it's not provided
+    if imgdata is None:
+        imgdata = img.load()
+
+    # Gee I fuckin' wonder
+    for x in range(img.size[0]):
+        for y in range(img.size[1]):
+            if function(imgdata[x, y]):
+                yield x, y
