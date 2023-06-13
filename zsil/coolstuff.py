@@ -9,8 +9,8 @@ import numpy as np
 from PIL import Image, ImageChops, ImageMath, ImageFilter
 from PIL import ImageDraw
 
-from ZachsStupidImageLibrary import colors
-from ZachsStupidImageLibrary.internal import lengthdir_x, lengthdir_y, getdistancestopoints
+import colors
+from internal import lengthdir_x, lengthdir_y, getdistancestopoints
 
 import io
 
