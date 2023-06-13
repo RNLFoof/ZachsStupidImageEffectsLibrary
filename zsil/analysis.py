@@ -1,6 +1,8 @@
+    #     draw.point(pixel, (0, 0, 0))
 from PIL import ImageDraw
+from PIL.Image import Image
 
-from ZachsStupidImageLibrary.internal import getdistancestopoints
+from zsil.internal import getdistancestopoints
 
 
 def get_all_opaque_pixels(img):
@@ -35,7 +37,7 @@ def getedgepixels(img):
 
     Returns:
     set: All opaque pixels right next to transparent ones."""
-    from ZachsStupidImageLibrary.coolstuff import inneroutline
+    from zsil.coolstuff import inneroutline
     inneroutlineimg = inneroutline(img, 1, (255, 0, 0), retonly=True)
     return get_all_opaque_pixels(inneroutlineimg)
 
@@ -202,22 +204,34 @@ def getdistancestoedges(img):
     return getdistancestopoints(startpoints, endpoints)
 
 
-def pixelfilter(function, img, imgdata=None):
-    """Returns the coordinates of all pixels that match a function.
+def get_edge_points(img: Image):
+    from zsil.coolstuff import roundalpha
+    img = roundalpha(img)
+    edge_pixels = getedgepixels(img)
+    transparent_pixels = get_all_transparent_pixels(img)
+    edge_points = set()
+    for edge_pixel in edge_pixels:
+        for x_corner in [-1, 1]:
+            for y_corner in [-1, 1]:
+                addable_offset = (0.5+x_corner/2, 0.5+y_corner/2)
+                addable = tuple([int(ep+ao) for ep, ao in zip(edge_pixel, addable_offset)])
 
-    Parameters:
-    function (function): A function that takes a tuple as input and returns a boolean. Determines what pixels to return.
-    img (PIL.Image): How many pixels out the outline stretches.
-    imgdata (PIL.PixelAccess): The result of img.load(), in case you had it loaded already. Generated if not provided.
+                # No need to waste processing time if this one is already in there
+                if addable in edge_points:
+                    continue
 
-    Yields:
-    tuple: All coordinates to which function returned true."""
-    # Create imgdata if it's not provided
-    if imgdata is None:
-        imgdata = img.load()
+                # Is it next to the infinite transparent void outside the image?
+                if 0 >= addable[0] or img.width <= addable[0] or 0 >= addable[1] or img.height <= addable[1]:
+                    edge_points.add(addable)
+                    continue
 
-    # Gee I fuckin' wonder
-    for x in range(img.size[0]):
-        for y in range(img.size[1]):
-            if function(imgdata[x, y]):
-                yield x, y
+                # The main man
+                for checking_offset in [
+                    (x_corner, 0),
+                    (x_corner, y_corner),
+                    (0, y_corner),
+                ]:
+                    if tuple([ep+co for ep, co in zip(edge_pixel, checking_offset)]) in transparent_pixels:
+                        edge_points.add(addable)
+                        break
+    return edge_points

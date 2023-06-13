@@ -9,6 +9,7 @@ from PIL import ImageShow
 import random as rando
 from statistics import mean
 import numpy
+from math import sqrt
 
 
 def convert1to255(col):
@@ -85,7 +86,7 @@ def mergecolors(col1, col2, amount=None):
         amount = rando.uniform(0.4, 0.6)
     newcolor = []
     for n, x in enumerate(col1):
-        newcolor.append(round(x * (1 - amount) + col2[n] * amount))
+        newcolor.append(round(sqrt(x**2 * (1 - amount) + col2[n]**2 * amount)))
     return tuple(newcolor)
 
 
@@ -315,7 +316,7 @@ def getmostrepresentativecolors(img: Image, commonfraction=0.1, representativefr
 
     Returns:
     list: The most representative colors."""
-    from ZachsStupidImageLibrary.coolstuff import piltowand, wandtopil
+    from zsil.coolstuff import piltowand, wandtopil
 
     quantities = getcolorusage(img)
     totaldesired = img.width * img.height * representativefraction
@@ -343,3 +344,6 @@ def getmostrepresentativecolors(img: Image, commonfraction=0.1, representativefr
         if total >= totaldesired:
             break
     return representativecolors
+
+def tuple_to_hex(color: tuple[int, ]):
+    return "".join([f"{x:x}".ljust(2, "0") for x in color])
