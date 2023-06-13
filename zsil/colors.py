@@ -12,7 +12,7 @@ import numpy
 from math import sqrt
 
 
-def convert1to255(col):
+def convert_1_to_255(col):
     c = list(col)
     for n, x in enumerate(c):
         c[n] = round(x * 255)
@@ -20,7 +20,7 @@ def convert1to255(col):
     return c
 
 
-def convert255to1(col):
+def convert_255_to_1(col):
     c = list(col)
     for n, x in enumerate(c):
         c[n] = x / 255
@@ -28,9 +28,9 @@ def convert255to1(col):
     return c
 
 
-def randomwhite(takehuefrom=None):
-    if takehuefrom:
-        hue = colorsys.rgb_to_hsv(*convert255to1(takehuefrom))[0]
+def random_white(take_hue_from=None):
+    if take_hue_from:
+        hue = colorsys.rgb_to_hsv(*convert_255_to_1(take_hue_from))[0]
     else:
         hue = None
 
@@ -59,7 +59,7 @@ def randomwhite(takehuefrom=None):
     return c
 
 
-def randomblack():
+def random_black():
     if rando.randint(0, 1):
         c = colorsys.hsv_to_rgb(
             rando.uniform(180 / 360, 246 / 360),
@@ -81,21 +81,21 @@ def randomblack():
     return c
 
 
-def mergecolors(col1, col2, amount=None):
+def merge_colors(color_1, color_2, amount=None):
     if amount is None:
         amount = rando.uniform(0.4, 0.6)
     newcolor = []
-    for n, x in enumerate(col1):
-        newcolor.append(round(sqrt(x**2 * (1 - amount) + col2[n]**2 * amount)))
+    for n, x in enumerate(color_1):
+        newcolor.append(round(sqrt(x ** 2 * (1 - amount) + color_2[n] ** 2 * amount)))
     return tuple(newcolor)
 
 
-def variantof(col):
+def variant_of(color):
     a = None
-    if len(col) > 3:
-        a = col[3]
-        col = col[:3]
-    h, s, v = colorsys.hsv_to_rgb(*convert255to1(col))
+    if len(color) > 3:
+        a = color[3]
+        color = color[:3]
+    h, s, v = colorsys.hsv_to_rgb(*convert_255_to_1(color))
     choice = rando.randint(0, 2)
     if choice == 0:
         h = (h + rando.random() / 5) % 1
@@ -104,22 +104,22 @@ def variantof(col):
     else:
         v = rando.random()
     if a is not None:
-        return convert1to255((h, s, v, a / 255))
+        return convert_1_to_255((h, s, v, a / 255))
     else:
-        return convert1to255((h, s, v))
+        return convert_1_to_255((h, s, v))
 
 
-def color_mind(inp):
-    print(inp)
+def color_mind(input):
+    print(input)
     url = "http://colormind.io/api/"
     data = {
         "model": "default",
-        "input": [list(x) if type(x) is tuple else x for x in inp]
+        "input": [list(x) if type(x) is tuple else x for x in input]
     }
     data = str(data).replace("'", '"')
     r = requests.post(url, data=data)
     ret = [tuple(x) for x in r.json()["result"]]
-    ret = ret * (1 + len(inp) // 5)
+    ret = ret * (1 + len(input) // 5)
     return ret
 
 
@@ -189,29 +189,29 @@ def average_hue(colors: Union[Iterator | Image.Image]) -> int:
 
 
 def show_palette(cols, size=64):
-    img = Image.new("RGB", (size * len(cols), size))
-    draw = ImageDraw.Draw(img)
+    image = Image.new("RGB", (size * len(cols), size))
+    draw = ImageDraw.Draw(image)
     for n, x in enumerate(cols):
         draw.rectangle((n * size, 0, (n + 1) * size, size), tuple(x))
-    ImageShow.show(img)
+    ImageShow.show(image)
 
 
 def show_palette_cube(cols, divider=2, back=False):
-    img = Image.new("RGBA", (256 * 2 // divider, 256 * 3 // divider))
-    draw = ImageDraw.Draw(img)
+    image = Image.new("RGBA", (256 * 2 // divider, 256 * 3 // divider))
+    draw = ImageDraw.Draw(image)
 
     top = tuple(x // divider for x in (255, 0))
     print(top)
-    topleft = tuple(x // divider for x in (0, 127))
-    topright = tuple(x // divider for x in (255 * 2, 127))
+    top_left = tuple(x // divider for x in (0, 127))
+    top_right = tuple(x // divider for x in (255 * 2, 127))
     center = tuple(x // divider for x in (255, 255))
-    bottomleft = tuple(x // divider for x in (0, 255 + 127))
-    bottomright = tuple(x // divider for x in (255 * 2, 255 + 127))
+    bottom_left = tuple(x // divider for x in (0, 255 + 127))
+    bottom_right = tuple(x // divider for x in (255 * 2, 255 + 127))
     bottom = tuple(x // divider for x in (255, 255 * 2))
 
-    draw.polygon([top, topleft, bottomleft, bottom, bottomright, topright], fill=(128, 128, 128, 32),
+    draw.polygon([top, top_left, bottom_left, bottom, bottom_right, top_right], fill=(128, 128, 128, 32),
                  outline=(0, 0, 0, 255))
-    imgdata = img.load()
+    imagedata = image.load()
     multiplier = -1 if back else 1
     for n, rgb in enumerate(sorted(cols, key=lambda c: multiplier * sum(c))):
         r, g, b = rgb[:3]
@@ -224,13 +224,13 @@ def show_palette_cube(cols, divider=2, back=False):
         x += (-(255 - r) + (255 - g)) // divider
         y += (-(255 - r) // 2 - (255 - g) // 2 + (255 - b)) // divider
         print(x, y)
-        imgdata[x, y] = (r, g, b, 255)
+        imagedata[x, y] = (r, g, b, 255)
 
-    draw.polygon([top, topleft, center, topright], fill=None, outline=(0, 0, 0, 255))
-    draw.polygon([topleft, center, bottom, bottomleft], fill=None, outline=(0, 0, 0, 255))
-    draw.polygon([topright, center, bottom, bottomright], fill=None, outline=(0, 0, 0, 255))
+    draw.polygon([top, top_left, center, top_right], fill=None, outline=(0, 0, 0, 255))
+    draw.polygon([top_left, center, bottom, bottom_left], fill=None, outline=(0, 0, 0, 255))
+    draw.polygon([top_right, center, bottom, bottom_right], fill=None, outline=(0, 0, 0, 255))
 
-    ImageShow.show(img)
+    ImageShow.show(image)
 
 
 def get_color_difference(rgb1, rgb2, bands="rgbh"):
@@ -239,11 +239,11 @@ def get_color_difference(rgb1, rgb2, bands="rgbh"):
     # RGB
     for n in range(3):
         total += abs(rgb1[n] - rgb2[n])
-    total += abs(gethue(rgb1) - gethue(rgb2))
+    total += abs(get_hue(rgb1) - get_hue(rgb2))
     return total
 
 
-def gethue(rgb):
+def get_hue(rgb):
     r, g, b = rgb
     maxc = max(r, g, b)
     minc = min(r, g, b)
@@ -263,87 +263,87 @@ def gethue(rgb):
     return h
 
 
-def getcolorusage(img):
+def get_color_usage(image: Image):
     """Counts how many times each rgba value is used. Or whatever mode the image is in.
 
     Parameters:
-    img (PIL.Image): The image you want info on.
+    image (PIL.Image): The image you want info on.
 
     Returns:
     dict: rgba(?) as key, quantity as value."""
-    imgdata = img.load()
+    image_data = image.load()
     quantities = {}
-    for x in range(img.width):
-        for y in range(img.height):
-            pixel = imgdata[x, y]
+    for x in range(image.width):
+        for y in range(image.height):
+            pixel = image_data[x, y]
             quantities.setdefault(pixel, 0)
             quantities[pixel] += 1
     return quantities
 
 
-def getmostcommoncolors(img: Image, fraction=0.1):
+def get_most_common_colors(image: Image, fraction=0.1):
     """Returns a list of the most common colors in an image.
 
     Parameters:
-    img (PIL.Image): The image you want info on.
+    image (PIL.Image): The image you want info on.
     fraction (float): A decimal between 0 and 1 indicating how far from the most common colors you want.
                       For example, 0.1 returns the fewest colors that, combined, make up 10% of the image.
 
     Returns:
     list: The most common colors."""
-    colorusage = getcolorusage(img)
-    totaldesired = img.width * img.height * fraction
+    color_usage = get_color_usage(image)
+    total_desired = image.width * image.height * fraction
     total = 0
-    mostcommon = []
-    for color, quantity in sorted(colorusage.items(), key=lambda x: -x[1]):
-        mostcommon.append(color)
+    most_common = []
+    for color, quantity in sorted(color_usage.items(), key=lambda x: -x[1]):
+        most_common.append(color)
         total += quantity
-        if total >= totaldesired:
+        if total >= total_desired:
             break
-    return mostcommon
+    return most_common
 
 
-def getmostrepresentativecolors(img: Image, commonfraction=0.1, representativefraction=0.1) -> list[tuple[int, int, int]]:
+def get_most_representative_colors(image: Image, common_fraction=0.1, representative_fraction=0.1) -> list[tuple[int, int, int]]:
     """Returns a list of the most "representative" colors in an image, determined by their proximity to the most common
     colors of the image liquid rescaled to half size.
 
     Parameters:
-    img (PIL.Image): The image you want info on.
-    commonfraction (float): A decimal between 0 and 1 indicating how far from the most common colors you want.
+    image (PIL.Image): The image you want info on.
+    common_fraction (float): A decimal between 0 and 1 indicating how far from the most common colors you want.
                       For example, 0.1 returns the fewest colors that, combined, make up 10% of the image.
-    representativefraction (float): A decimal between 0 and 1 indicating how far from the most representative colors you want.
+    representative_fraction (float): A decimal between 0 and 1 indicating how far from the most representative colors you want.
                       For example, 0.1 returns the fewest colors that, combined, make up 10% of the image.
 
     Returns:
     list: The most representative colors."""
-    from zsil.coolstuff import piltowand, wandtopil
+    from zsil.cool_stuff import pil_to_wand, wand_to_pil
 
-    quantities = getcolorusage(img)
-    totaldesired = img.width * img.height * representativefraction
+    quantities = get_color_usage(image)
+    total_desired = image.width * image.height * representative_fraction
 
-    mode = img.mode
-    resizedimg = img.copy()
-    resizedimg.thumbnail((64, 64))
-    # wandimg = piltowand(resizedimg)
-    # wandimg.liquid_rescale(width=resizedimg.height//2, height=resizedimg.height//2)
-    # resizedimg = wandtopil(wandimg).convert(mode)
-    mostcommoncolors = getmostcommoncolors(resizedimg, fraction=commonfraction)
+    mode = image.mode
+    resized_image = image.copy()
+    resized_image.thumbnail((64, 64))
+    # wandimage = piltowand(resized_image)
+    # wandimage.liquid_rescale(width=resized_image.height//2, height=resized_image.height//2)
+    # resized_image = wandtopil(wandimage).convert(mode)
+    most_common_colors = get_most_common_colors(resized_image, fraction=common_fraction)
 
-    colornotrepresentativeness = {}  # Increases as a color becomes less representative of the whole
+    color_not_representativeness = {}  # Increases as a color becomes less representative of the whole
     for color in quantities.keys():
-        numofbands = len(color)
-        colornotrepresentativeness[color] = 0
-        for commoncolor in mostcommoncolors:
-            colornotrepresentativeness[color] += get_color_difference(color, commoncolor)
+        number_of_bands = len(color)
+        color_not_representativeness[color] = 0
+        for common_color in most_common_colors:
+            color_not_representativeness[color] += get_color_difference(color, common_color)
 
-    representativecolors = []
+    representative_colors = []
     total = 0
-    for color, notrepresentativeness in sorted(colornotrepresentativeness.items()):
-        representativecolors.append(color)
+    for color, not_representativeness in sorted(color_not_representativeness.items()):
+        representative_colors.append(color)
         total += quantities[color]
-        if total >= totaldesired:
+        if total >= total_desired:
             break
-    return representativecolors
+    return representative_colors
 
 def tuple_to_hex(color: tuple[int, ]):
     return "".join([f"{x:x}".ljust(2, "0") for x in color])
