@@ -17,6 +17,9 @@ import io
 from PIL import ImageFont
 from wand.image import Image as WandImage
 
+import scipy.spatial as spatial
+from typing import Sequence
+
 #  Constants for simpleshape.
 SHAPE_TRIANGLE = 0
 SHAPE_SQUARE = 1
@@ -108,7 +111,7 @@ def outline(img, radius, color, retonly=False, pattern=None, minradius=None, max
 
 def inneroutline(img, radius, color, retonly=False, pattern=None):
     # Create a slightly larger image that can for sure hold the white outline coming up.
-    slightlylargerimg = img.crop((-1,-1,img.width+1,img.height+1))
+    slightlylargerimg = img.crop((-1, -1, img.width + 1, img.height + 1))
 
     # Get a white silhouette of the slightly larger img
     a = roundalpha(slightlylargerimg).getchannel("A")
@@ -125,7 +128,7 @@ def inneroutline(img, radius, color, retonly=False, pattern=None):
     inneroutline = lowestoftwoalphaas(inneroutline, slightlylargerimg)
 
     # Convert the slightly larger img back to its original size
-    inneroutline = inneroutline.crop((1,1,inneroutline.width-1,inneroutline.height-1))
+    inneroutline = inneroutline.crop((1, 1, inneroutline.width - 1, inneroutline.height - 1))
     print(img.size, inneroutline.size)
 
     # Return
@@ -256,12 +259,12 @@ def croptocontent(img, forcetop=None, forceleft=None, forcebottom=None, forcerig
     bb = img.getbbox()
     # If it's None, it's empty
     if bb is None:
-        bb = [0,0,1,1]
+        bb = [0, 0, 1, 1]
     else:
         # Convert because tuple indexes can't be modified
         bb = list(bb)
         # Turns out the bounding box is off by one pixel in each direction, so fix that
-        for index, offset in enumerate([-1,-1,1,1]):
+        for index, offset in enumerate([-1, -1, 1, 1]):
             bb[index] += offset
     # Replace bits of it, if needed
     if forcetop is not None or forceleft is not None or forcebottom is not None or forceright is not None:
@@ -399,7 +402,7 @@ def directionalshading(img):
     from ZachsStupidImageLibrary.analysis import get_all_opaque_pixels, getedgepixels, getcenterpixels
 
     # Maybe don't force this?
-    #img = threshholdalpha(img, 127)
+    # img = threshholdalpha(img, 127)
 
     # Get possible endpoints
     edgeendpoints = getedgepixels(img)
@@ -408,7 +411,7 @@ def directionalshading(img):
 
     # Get possible starting points
     startpoints = get_all_opaque_pixels(img)
-    #startpoints -= bothendpoints
+    # startpoints -= bothendpoints
 
     # Get potential lines
     edgepotentiallines = {}
@@ -427,7 +430,7 @@ def directionalshading(img):
     n = 0
     goalpoints = len(startpoints | bothendpoints)
     uncombinedpoints = {}
-    while goalpoints*0.6 > len(get_all_opaque_pixels(shadingcolors)) and n < 100:
+    while goalpoints * 0.6 > len(get_all_opaque_pixels(shadingcolors)) and n < 100:
         print(len(get_all_opaque_pixels(shadingcolors)), goalpoints)
         # Get current longest
         # longest = -1
@@ -449,20 +452,20 @@ def directionalshading(img):
             else:
                 potentialline = centerpotentialline
                 reversemaybe = 180
-            if True:# potentialline.dis == longest:
-                absolute = round(abs((potentialline.dir+135+reversemaybe)%360-180)/180*255)
-                using = absolute # round(absolute/255)*255
-                #draw.line((potentialline.startpoint, potentialline.endpoint), (using, 2))
-                #draw.point(potentialline.startpoint, (using, 255))
-                difx = potentialline.startpoint[0]-potentialline.endpoint[0]
+            if True:  # potentialline.dis == longest:
+                absolute = round(abs((potentialline.dir + 135 + reversemaybe) % 360 - 180) / 180 * 255)
+                using = absolute  # round(absolute/255)*255
+                # draw.line((potentialline.startpoint, potentialline.endpoint), (using, 2))
+                # draw.point(potentialline.startpoint, (using, 255))
+                difx = potentialline.startpoint[0] - potentialline.endpoint[0]
                 deltax = abs(difx)
-                dify = abs(potentialline.startpoint[1]-potentialline.endpoint[1])
+                dify = abs(potentialline.startpoint[1] - potentialline.endpoint[1])
                 deltay = abs(dify)
                 maxdelta = max(deltax, deltay)
-                for n in range(maxdelta+1):
+                for n in range(maxdelta + 1):
                     point = (
-                        round(potentialline.startpoint[0]-difx/maxdelta*n),
-                        round(potentialline.startpoint[1]-dify/maxdelta*n),
+                        round(potentialline.startpoint[0] - difx / maxdelta * n),
+                        round(potentialline.startpoint[1] - dify / maxdelta * n),
                     )
                     print(potentialline.startpoint, point, potentialline.endpoint)
                     uncombinedpoints.setdefault(point, [])
@@ -473,16 +476,16 @@ def directionalshading(img):
                 #     img.alpha_composite(shadingcolors.convert("RGBA"))
                 #     img.show()
         # Remove everything that's now filled in
-        #shadingcolorspoints = getallalphapoints(shadingcolors)
-        #print(potentialline.startpoint in shadingcolorspoints)
-        #startpoints -= getallalphapoints(shadingcolors)
-        #print(len(startpoints))
+        # shadingcolorspoints = getallalphapoints(shadingcolors)
+        # print(potentialline.startpoint in shadingcolorspoints)
+        # startpoints -= getallalphapoints(shadingcolors)
+        # print(len(startpoints))
         n += 1
 
     for point, usings in uncombinedpoints.items():
         draw.point(point, (round(mean(usings)), 255))
 
-    #shadingcolors = shadingcolors.convert("RGBA")
+    # shadingcolors = shadingcolors.convert("RGBA")
     # for x in range(100):
     #     blurryboy = shadingcolors.copy()
     #     blurryboy = blurryboy.filter(ImageFilter.GaussianBlur)
@@ -491,7 +494,7 @@ def directionalshading(img):
     shadingcolorsdata = shadingcolors.load()
     for x in range(shadingcolors.width):
         for y in range(shadingcolors.height):
-            if shadingcolorsdata[x,y][1] == 0:
+            if shadingcolorsdata[x, y][1] == 0:
                 pass
 
     shadingcolors.show()
@@ -507,7 +510,7 @@ def metallicdirectionalshading(img):
     from ZachsStupidImageLibrary.analysis import get_all_opaque_pixels, getedgepixels, getcenterpixels
 
     # Maybe don't force this?
-    #img = threshholdalpha(img, 127)
+    # img = threshholdalpha(img, 127)
 
     # Get possible endpoints
     edgeendpoints = getedgepixels(img)
@@ -516,7 +519,7 @@ def metallicdirectionalshading(img):
 
     # Get possible starting points
     startpoints = get_all_opaque_pixels(img)
-    #startpoints -= bothendpoints
+    # startpoints -= bothendpoints
 
     # Get potential lines
     edgepotentiallines = {}
@@ -534,7 +537,7 @@ def metallicdirectionalshading(img):
     draw = ImageDraw.Draw(shadingcolors)
     n = 0
     goalpoints = len(startpoints | bothendpoints)
-    while goalpoints*0.6 > len(get_all_opaque_pixels(shadingcolors)) and n < 100:
+    while goalpoints * 0.6 > len(get_all_opaque_pixels(shadingcolors)) and n < 100:
         print(len(get_all_opaque_pixels(shadingcolors)), goalpoints)
         # Get current longest
         # longest = -1
@@ -556,24 +559,24 @@ def metallicdirectionalshading(img):
             else:
                 potentialline = centerpotentialline
                 reversemaybe = 180
-            if True:# potentialline.dis == longest:
-                absolute = round(abs((potentialline.dir+135+reversemaybe)%360-180)/180*255)
-                using = absolute # round(absolute/255)*255
+            if True:  # potentialline.dis == longest:
+                absolute = round(abs((potentialline.dir + 135 + reversemaybe) % 360 - 180) / 180 * 255)
+                using = absolute  # round(absolute/255)*255
                 draw.line((potentialline.startpoint, potentialline.endpoint), (using, 2))
-                #draw.point(potentialline.startpoint, (using, 255))
+                # draw.point(potentialline.startpoint, (using, 255))
                 startpoints.remove(potentialline.startpoint)
                 # n += 1
                 # if n**0.5 == round(n**0.5):
                 #     img.alpha_composite(shadingcolors.convert("RGBA"))
                 #     img.show()
         # Remove everything that's now filled in
-        #shadingcolorspoints = getallalphapoints(shadingcolors)
-        #print(potentialline.startpoint in shadingcolorspoints)
-        #startpoints -= getallalphapoints(shadingcolors)
-        #print(len(startpoints))
+        # shadingcolorspoints = getallalphapoints(shadingcolors)
+        # print(potentialline.startpoint in shadingcolorspoints)
+        # startpoints -= getallalphapoints(shadingcolors)
+        # print(len(startpoints))
         n += 1
 
-    #shadingcolors = shadingcolors.convert("RGBA")
+    # shadingcolors = shadingcolors.convert("RGBA")
     # for x in range(100):
     #     blurryboy = shadingcolors.copy()
     #     blurryboy = blurryboy.filter(ImageFilter.GaussianBlur)
@@ -582,13 +585,14 @@ def metallicdirectionalshading(img):
     shadingcolorsdata = shadingcolors.load()
     for x in range(shadingcolors.width):
         for y in range(shadingcolors.height):
-            if shadingcolorsdata[x,y][1] == 0:
+            if shadingcolorsdata[x, y][1] == 0:
                 pass
 
     shadingcolors.putalpha(img.split()[img.getbands().index("A")])
     shadingcolors.show()
     img.alpha_composite(shadingcolors.convert("RGBA"))
     img.show()
+
 
 def godeepdreamyourself(img, max_dim=None, steps=100):
     """A lazy wrapper for something made by somebody cooler than me."""
@@ -843,20 +847,20 @@ def simpleshape(imgordraw, xy, radius, color, shape, rotation=None):
         elif shape == SHAPE_DIAMOND:
             draw.polygon((
                 (
-                    x + lengthdir_x(radius, 0+rotation),
-                    y + lengthdir_y(radius, 0+rotation)
+                    x + lengthdir_x(radius, 0 + rotation),
+                    y + lengthdir_y(radius, 0 + rotation)
                 ),
                 (
-                    x + lengthdir_x(radius/2, 90+rotation),
-                    y + lengthdir_y(radius/2, 90+rotation)
+                    x + lengthdir_x(radius / 2, 90 + rotation),
+                    y + lengthdir_y(radius / 2, 90 + rotation)
                 ),
                 (
-                    x + lengthdir_x(radius, 180+rotation),
-                    y + lengthdir_y(radius, 180+rotation)
+                    x + lengthdir_x(radius, 180 + rotation),
+                    y + lengthdir_y(radius, 180 + rotation)
                 ),
                 (
-                    x + lengthdir_x(radius/2, 270+rotation),
-                    y + lengthdir_y(radius/2, 270+rotation)
+                    x + lengthdir_x(radius / 2, 270 + rotation),
+                    y + lengthdir_y(radius / 2, 270 + rotation)
                 )
             ), fill=color)
         # Draw star
@@ -871,6 +875,7 @@ def simpleshape(imgordraw, xy, radius, color, shape, rotation=None):
         #     draw.regular_polygon((x, y, radius), random.choice([3, 4, 5, 6, 8]),
         #                                 rotation=random.random() * 360, fill=color)
     return imgordraw
+
 
 def predictthumbnailsize(originalsize, newsize):
     """Figures out what size an image of originalsize would become if you used it to make a thumbnail of newsize.
@@ -899,21 +904,25 @@ def predictthumbnailsize(originalsize, newsize):
         )
     return x, y
 
+
 def multiline_textsize_but_it_works(text, font, maxwidth=1500):
     # Should probably implement other parameters.
-    img = Image.new('RGBA',(maxwidth,1200),color=(0,0,0,0))
+    img = Image.new('RGBA', (maxwidth, 1200), color=(0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    draw.multiline_text((0,0), text, font=font, fill="black", align="center")
+    draw.multiline_text((0, 0), text, font=font, fill="black", align="center")
 
     bbox = img.getbbox()
     if bbox:
-        width = bbox[2]-bbox[0]
-        height = bbox[3]-bbox[1]
+        width = bbox[2] - bbox[0]
+        height = bbox[3] - bbox[1]
         return width, height
     else:
-        return 0,0
+        return 0, 0
 
-def autobreakingtext(imgordraw, allowedwidth, xy, text, fill=None, font=None, anchor=None, spacing=4, align='left', direction=None, features=None, language=None, stroke_width=0, stroke_fill=None, embedded_color=False):
+
+def autobreakingtext(imgordraw, allowedwidth, xy, text, fill=None, font=None, anchor=None, spacing=4, align='left',
+                     direction=None, features=None, language=None, stroke_width=0, stroke_fill=None,
+                     embedded_color=False):
     """Draws PIL text and adds line breaks whenever it gets too wide.
 
     Parameters:
@@ -935,11 +944,11 @@ def autobreakingtext(imgordraw, allowedwidth, xy, text, fill=None, font=None, an
     # If there's a forced line break followed by a word that's longer than the limit, that'll make the word before the
     # line break get its own line even though it doesn't need it. But again, lazy.
     textsplit = text.split(" ")
-    teststring = "" # What needs to pass Inspection
-    usingstring = "" # What will be drawn at the end
+    teststring = ""  # What needs to pass Inspection
+    usingstring = ""  # What will be drawn at the end
     for word in textsplit:
         tempteststring = teststring + " " + word
-        if multiline_textsize_but_it_works(tempteststring, font, maxwidth=allowedwidth+20)[0] <= allowedwidth:
+        if multiline_textsize_but_it_works(tempteststring, font, maxwidth=allowedwidth + 20)[0] <= allowedwidth:
             teststring = tempteststring
             usingstring += " " + word
         else:
@@ -966,27 +975,28 @@ def enlargablethumbnail(img, size, resample=None):
         img.thumbnail(size, resample=resample)
         return img
     possiblemultipliers = sorted([
-        size[0]/img.size[0],
-        size[1]/img.size[1],
+        size[0] / img.size[0],
+        size[1] / img.size[1],
     ])[::-1]
     for multiplier in possiblemultipliers:
-        newwidth = round(img.size[0]*multiplier)
-        newheight = round(img.size[1]*multiplier)
+        newwidth = round(img.size[0] * multiplier)
+        newheight = round(img.size[1] * multiplier)
         if newwidth <= size[0] and newheight <= size[1]:
             return img.resize((newwidth, newheight), resample=resample)
+
 
 def squarecrop(img):
     """Adds extra size on both sides of an image to form a square."""
     if img.width > img.height:
         # These are separate so that one can be one pixel larger if it's an odd number
-        extrasizeononeside = (img.width-img.height)//2
-        extrasizeontheother = (img.width-img.height) - extrasizeononeside
-        img = img.crop((0, -extrasizeononeside, img.width, img.height+extrasizeontheother))
+        extrasizeononeside = (img.width - img.height) // 2
+        extrasizeontheother = (img.width - img.height) - extrasizeononeside
+        img = img.crop((0, -extrasizeononeside, img.width, img.height + extrasizeontheother))
     elif img.width < img.height:
         # These are separate so that one can be one pixel larger if it's an odd number
-        extrasizeononeside = (img.height-img.width)//2
-        extrasizeontheother = (img.height-img.width) - extrasizeononeside
-        img = img.crop((-extrasizeononeside, 0, img.width+extrasizeontheother, img.height))
+        extrasizeononeside = (img.height - img.width) // 2
+        extrasizeontheother = (img.height - img.width) - extrasizeononeside
+        img = img.crop((-extrasizeononeside, 0, img.width + extrasizeontheother, img.height))
     return img
 
 
@@ -1061,8 +1071,9 @@ def split_image():
 def shift_hue_by(image: Image, by: int) -> Image:
     image = image.convert("HSV")
     h, s, v = image.split()
-    h = Image.eval(h, lambda x: (x+by) % 255)
+    h = Image.eval(h, lambda x: (x + by) % 255)
     return Image.merge("HSV", (h, s, v))
+
 
 def shift_hue_towards(image: Image, towards: int) -> Image:
     image = image.convert("HSV")
@@ -1070,21 +1081,74 @@ def shift_hue_towards(image: Image, towards: int) -> Image:
     by = towards - average_hue
     return shift_hue_by(image, by)
 
+
 def shift_bands_by(image: Image, by: Iterable[int]) -> Image:
     bands = []
     for index, band in enumerate(image.split()):
         if image.mode[index] == "H":  # Pretty sure H is the only one that "loops"?
-            band = Image.eval(band, lambda x: (x+by[index]) % 255)
+            band = Image.eval(band, lambda x: (x + by[index]) % 255)
         else:
             band = Image.eval(band, lambda x: min(255, max(0, (x + by[index]))))
         bands.append(band)
     return Image.merge(image.mode, bands)
 
+
 def shift_bands_towards(image: Image, towards: Iterable[int]) -> Image:
     average_color = colors.average_color(image)
-    return shift_bands_by(image, [x[0]-x[1] for x in zip(towards, average_color)])
+    return shift_bands_by(image, [x[0] - x[1] for x in zip(towards, average_color)])
+
+
+def buttonize(img: Image, distance_from_edge: int = 5, outermost_color=(0, 0, 0), innermost_color=(255, 255, 255)):
+    for current_distance_from_edge in list(range(distance_from_edge))[::-1]:
+        img = inneroutline(img, current_distance_from_edge, colors.mergecolors(outermost_color, innermost_color,
+                                                                               current_distance_from_edge / distance_from_edge))
+    return img
+
+
+def voronoi_edges(img: Image, points: Sequence[tuple[int, int]], color=(0, 0, 0), width=1):
+    voronoi = spatial.Voronoi(points, furthest_site=False)
+    draw = ImageDraw.Draw(img)
+    for region in voronoi.regions:
+        if -1 in region:
+            continue
+        points_on_line = []
+        for vert_index in region:
+            points_on_line.append(tuple(voronoi.vertices[vert_index]))
+        if len(points_on_line) == 0:
+            continue
+        print(points_on_line)
+        points_on_line.append((points_on_line[0]))
+        draw.line(points_on_line, color, width)
+    # for point in points:
+    #     draw.ellipse([
+    #         point[0]-5,
+    #         point[1]-5,
+    #         point[0]+5,
+    #         point[1]+5,
+    #     ], 0XFF0000)
+    return img
 
 if __name__ == "__main__":
+    img = Image.new("RGB", (1272, 1272), 0xffffff)
+    layers = 12
+    sides = 16
+    points = []
+    for layer in range(1, layers):
+        distance = (1272**2*2)**0.5/layers*layer/2
+        for side in range(sides):
+            angle = math.pi * 2 / sides * (side + (1/2*(layer%2)))
+            points.append( (
+                1272/2 + math.sin(angle) * distance,
+                1272/2 + math.cos(angle) * distance,
+            ))
+    voronoi_edges(img, points, width=10)
+    img.save("crazy.png")
+    exit()
+    path = r"S:\Models\Custom\Gloomhaven Tokens\buttonized\attempt"
+    for file in os.listdir(path):
+        img = Image.open(os.path.join(path, file))
+        buttonize(img, 50).save(os.path.join(path, "modifiedd_" + file))
+    exit()
     dynamiclysizedtextimage("test\nertdjhnguerdhjguierjhuijejsrih", (50, 50)).show()
     exit()
     # import numpy as np
@@ -1140,33 +1204,33 @@ if __name__ == "__main__":
     # curve = bezier.Curve(nodes, degree=2)
     # curve.plot(5)
     # plt.show()
-    #exit()
+    # exit()
     img = Image.new("RGBA", (1200, 1200))
     draw = ImageDraw.Draw(img)
     font = ImageFont.truetype("segoescb.ttf", 120)
-    draw.multiline_text((5,5), "QBR", font=font, fill=(255, 0,0)) # QWERTYUIOPqwertyuiop
+    draw.multiline_text((5, 5), "QBR", font=font, fill=(255, 0, 0))  # QWERTYUIOPqwertyuiop
     img = croptocontent(img)
-    #img = outline(img, 1, (0, 0, 0))
+    # img = outline(img, 1, (0, 0, 0))
     directionalshading(img)
     img.show()
     exit()
     path = r"S:\Code\django\clock\app\static\app\wallpapers\chosen\\"
     imgname = random.choice(os.listdir(path))
     img = Image.open(path + imgname).convert("RGBA")
-    #img = enlargablethumbnail(img, (10000,10000), Image.LANCZOS)
+    # img = enlargablethumbnail(img, (10000,10000), Image.LANCZOS)
     # # power = 8
     # # img.thumbnail((2**power, 2**power))
-    #print(img.size)
-    #exit()
+    # print(img.size)
+    # exit()
     # allcolors = [(r,g,b) for r in range(0,256,4) for g in range(0,256,4) for b in range(0,256,4)]
     # colors.showpalettecube(allcolors)
     # colors.showpalettecube(allcolors, back=True)
-    #common = colors.getmostcommoncolors(img, 1)
+    # common = colors.getmostcommoncolors(img, 1)
     common = colors.getmostrepresentativecolors(img)
     img.show()
     colors.show_palette_cube(common)
     colors.show_palette_cube(common, back=True)
-    #colors.showpalette(colors.getmostrepresentativecolors(img, 0.5, 0.5), 1)
+    # colors.showpalette(colors.getmostrepresentativecolors(img, 0.5, 0.5), 1)
     # repaint(img, lambda newimg, xy, size, color:
     #         newimg.alpha_composite(
     #             shadow(
