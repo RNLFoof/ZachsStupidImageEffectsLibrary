@@ -1,10 +1,11 @@
-from PIL import ImageDraw
-from PIL.Image import Image
+from PIL import ImageDraw, Image
+from scipy import spatial
+from scipy.spatial import voronoi_plot_2d
 
 from zsil.internal import get_distances_to_points
 
 
-def get_all_opaque_pixels(image: Image) -> set[tuple[int, int]]:
+def get_all_opaque_pixels(image: Image.Image) -> set[tuple[int, int]]:
     """Returns a set of all pixels whose alpha is larger than zero.
 
     Parameters:
@@ -22,7 +23,7 @@ def get_all_opaque_pixels(image: Image) -> set[tuple[int, int]]:
     return points
 
 
-def get_all_transparent_pixels(image: Image) -> set[tuple[int, int]]:
+def get_all_transparent_pixels(image: Image.Image) -> set[tuple[int, int]]:
     """Returns a set of all pixels whose alpha is zero.
 
     Parameters:
@@ -40,7 +41,7 @@ def get_all_transparent_pixels(image: Image) -> set[tuple[int, int]]:
     return points
 
 
-def get_edge_pixels(image: Image) -> set[tuple[int, int]]:
+def get_edge_pixels(image: Image.Image) -> set[tuple[int, int]]:
     """Returns a set of all opaque pixels right next to transparent ones.
 
     Parameters:
@@ -53,7 +54,7 @@ def get_edge_pixels(image: Image) -> set[tuple[int, int]]:
     return get_all_opaque_pixels(inner_outline_image)
 
 
-def get_center_pixels(image: Image) -> set[tuple[int, int]]:
+def get_center_points(image: Image.Image) -> set[tuple[int, int]]:
     """Returns a set of pixels that form a line along the "center" of opaque sections. Calculated like this:
     - Get edge distance for all opaque pixels
     - All pixels that equal the largest distance are selected
@@ -65,133 +66,82 @@ def get_center_pixels(image: Image) -> set[tuple[int, int]]:
 
     Returns:
     set: All opaque pixels right next to transparent ones."""
+    from zsil.cool_stuff import voronoi_edges
+    edge_pixels = get_edge_pixels(image)
 
-    # Gets pixels only touching one other pixel
-    # def getlineendpixels(pixels):
-    #     for pixel in pixels:
-    #         count = 0
-    #         for surroundingpixel in getsurroundingpixels(pixel):
-    #             if surroundingpixel in pixels:
-    #                 count += 1
-    #                 if count >= 2:
-    #                     break
-    #         else:
-    #             yield pixel
+    # bigger = [tuple(y*100 for y in x) for x in edge_pixels]
+    # print(bigger)
+    # voronoi_edges(Image.new("RGB", (image.width * 100, image.height * 100), color=0xffffff), bigger, color=0)
+    import matplotlib.pyplot as plt
 
-    def getlineendpixels(pixels):
-        for pixel in pixels:
-            left = False
-            right = False
-            up = False
-            down = False
-            count = 0
 
-            for surroundingpixel in getsurroundingpixels(pixel):
-                if surroundingpixel in pixels:
-                    px, py = pixel
-                    spx, spy = surroundingpixel
-
-                    left = left or spx == px - 1
-                    right = right or spx == px + 1
-                    if left and right:
-                        break
-
-                    up = up or spy == py - 1
-                    down = down or spy == py + 1
-                    if up and down:
-                        break
-
-                    count += 1
-                    if count >= 5:
-                        break
+    voronoi = spatial.Voronoi(list(edge_pixels), furthest_site=False)
+    fig = voronoi_plot_2d(voronoi)
+    furthest_for_n_guys = []
+    non_furthest_for_n_guys = []
+    points_and_their_connections: dict[tuple[int, int], set[tuple[int, int]]] = {}
+    for region in voronoi.regions:
+        points_on_line = []
+        for vert_index in region:
+            if vert_index != -1:
+                points_on_line.append(tuple(voronoi.vertices[vert_index]))
             else:
-                yield pixel
+                points_on_line.append(None)
+        if len(points_on_line) == 0:
+            continue
+        previous_point = None
+        for point_on_line in points_on_line + points_on_line[:1]:
+            if point_on_line is not None:
+                pixel_for_point = tuple(round(x) for x in point_on_line)
+                try:
+                    if image.getpixel(pixel_for_point)[3] == 0:
+                        point_on_line = None
+                except IndexError: # If it's outside of the image it's considered transparent
+                    point_on_line = None
+            if point_on_line is not None:
+                points_and_their_connections.setdefault(point_on_line, set())
+                if previous_point is not None:
+                    points_and_their_connections[point_on_line].add(previous_point)
+                    points_and_their_connections[previous_point].add(point_on_line)
+            previous_point = point_on_line
 
-    def getnearlykissingpixels(pixels):
-        for pixel in pixels:
-            left = False
-            right = False
-            up = False
-            down = False
-            count = 0
+    start_points = set()
+    splits_somewhere = False
+    for point, connections in points_and_their_connections.items():
+        if len(connections) == 1:
+            start_points.add(point)
+        if len(connections) >= 3:
+            splits_somewhere = True
 
-            for surroundingpixel in getsurroundingpixels(pixel):
-                if surroundingpixel in pixels:
-                    px, py = pixel
-                    spx, spy = surroundingpixel
+    remove_these = set(start_points)
+    remove_these_length_last_time = -1
+    while splits_somewhere and len(remove_these) != remove_these_length_last_time:
+        remove_these_length_last_time = len(remove_these)
+        for removed in list(remove_these):
+            connections = points_and_their_connections[removed]
+            if len(connections) > 2:
+                continue
+            for connection in connections:
+                connections_of_the_connection = points_and_their_connections[connection]
+                if len(connections_of_the_connection) > 2:
+                    continue
+                remove_these.add(connection)
 
-                    left = left or spx == px - 1
-                    right = right or spx == px + 1
+    for remove_this in remove_these:# + non_furthest_for_n_guys:
+        plt.plot(*tuple(remove_this), "bo")
+        print(remove_this)
+    # print(center_points)
+    # for center_point in center_points:
+    #     print(center_point)
+        #image.putpixel([round(x) for x in center_point], 0xff0000ff)
 
-                    up = up or spy == py - 1
-                    down = down or spy == py + 1
-
-                    # count += 1
-                    # if count >= 3:
-                    #     break
-            else:
-                yield pixel
-
-    def getsurroundingpixels(pixel):
-        x, y = pixel
-        for xplus in range(-1, 2):
-            for yplus in range(-1, 2):
-                check = (x + xplus, y + yplus)
-                if check != pixel:
-                    yield check
-
-    distancestoedges = get_distances_to_edges(image)
-    distancestodteobjects = {}
-    draw = ImageDraw.Draw(image)
-    for distancetoedge in distancestoedges:
-        distancestodteobjects.setdefault(distancetoedge.dis, [])
-        distancestodteobjects[distancetoedge.dis].append(distancetoedge)
-        draw.point(distancetoedge.start_point, (255, 255, 0))
-    image.show()
-
-    selected = set()
-    avoid = set()
-    for n, distance in enumerate(sorted(list(distancestodteobjects.keys()))[::-1]):
-        distancestoedges = distancestodteobjects[distance]
-        pendingselected = set()
-        pendingavoid = set()
-        for distancetoedges in distancestoedges:
-            x, y = distancetoedges.start_point
-            touching = 0
-            for check in getsurroundingpixels(distancetoedges.start_point):
-                if check in selected or check in avoid:
-                    touching += 1
-            if touching >= 1:
-                pendingavoid.add((x, y))
-            else:
-                pendingselected.add((x, y))
-
-        selected |= pendingselected
-        avoid |= pendingavoid
-
-    for n, distance in enumerate(sorted(list(distancestodteobjects.keys()))[::-1]):
-        distancestoedges = distancestodteobjects[distance]
-        lineendpixels = list(getlineendpixels(selected))
-
-        extras = set()
-        for distancetoedges in distancestoedges:
-            if any(sp in lineendpixels for sp in getsurroundingpixels(distancetoedges.start_point)):
-                extras.add(distancetoedges.start_point)
-
-        selected |= extras
-        for pixel in selected:
-            draw.point(pixel, (0, 0, 255))
-        for pixel in extras:
-            draw.point(pixel, (255, 0, 0))
-        for pixel in lineendpixels:
-            draw.point(pixel, (0, 255, 0))
-        if n % 10 == 0:
-            image.show()
-    image.save("ffWACK.png")
-    return selected
+    #image.show()
+    #plt.plot()
+    plt.show()
+    return center_points
 
 
-def get_distances_to_edges(image: Image):
+def get_distances_to_edges(image: Image.Image):
     """Returns a list of objects indicating the closest transparent pixel to each non-transparent pixel.
 
     Parameters:
@@ -214,9 +164,9 @@ def get_distances_to_edges(image: Image):
     return get_distances_to_points(start_points, end_points)
 
 
-def get_edge_points(image: Image):
-    from zsil.cool_stuff import roundalpha
-    image = roundalpha(image)
+def get_edge_points(image: Image.Image):
+    from zsil.cool_stuff import round_alpha
+    image = round_alpha(image)
     edge_pixels = get_edge_pixels(image)
     transparent_pixels = get_all_transparent_pixels(image)
     edge_points = set()

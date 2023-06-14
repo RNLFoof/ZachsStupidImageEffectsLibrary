@@ -1,6 +1,7 @@
 from PIL import Image
+from pytest_assume.plugin import assume
 
-from zsil.analysis import get_edge_points
+from zsil.analysis import get_edge_points, get_center_pixels
 
 
 def test_get_edge_points_at_image_border():
@@ -12,6 +13,7 @@ def test_get_edge_points_at_image_border():
         (1, 1),
     }
 
+
 def test_get_edge_points_one_pixel():
     image = Image.new("RGBA", (3, 3), 0)
     image.putpixel((1, 1), 0xffffffff)
@@ -22,14 +24,15 @@ def test_get_edge_points_one_pixel():
         (2, 2),
     }
 
+
 def test_get_edge_points_square():
     square_side = 10
-    image = Image.new("RGBA", (square_side+2, square_side+2), 0)
+    image = Image.new("RGBA", (square_side + 2, square_side + 2), 0)
     for x in [1, 2]:
         for y in [1, 2]:
             image.putpixel((x, y), 0xffffffff)
     lowest = 1
-    highest = square_side-1
+    highest = square_side - 1
     assert get_edge_points(image) == set([
         (x, y)
         for x, y
@@ -39,3 +42,8 @@ def test_get_edge_points_square():
         )
         if x in (lowest, highest) or y in (lowest, highest)
     ])
+
+
+def test_get_center_pixels():
+    rectangle_image = Image.new("RGBA", (3, 5), 0xffffffff)
+    with assume: assert get_center_pixels(rectangle_image) == {(1, 1), (2, 1), (3, 1)}

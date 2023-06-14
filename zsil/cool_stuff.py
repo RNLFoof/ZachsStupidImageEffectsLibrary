@@ -12,8 +12,8 @@ from PIL import Image, ImageChops, ImageMath, ImageFilter
 from PIL import ImageDraw
 from wand.image import Image as WandImage
 
-import colors
-from internal import lengthdir_x, lengthdir_y, get_distances_to_points
+from zsil import colors
+from zsil.internal import lengthdir_x, lengthdir_y, get_distances_to_points
 
 #  Constants for simpleshape.
 SHAPE_TRIANGLE = 0
@@ -27,7 +27,7 @@ SHAPE_DIAMOND = 7
 SHAPE_STAR = 8
 
 
-def outline(image: Image, radius: float, color, return_only: bool = False, pattern: Optional[Image] = None,
+def outline(image: Image.Image, radius: float, color, return_only: bool = False, pattern: Optional[Image.Image] = None,
             minimum_radius: Optional[float] = None, maximum_radius: Optional[float] = None,
             skip_chance=0,
             lowest_radius_of=1, color_randomize=0, position_deviation=0, shape=SHAPE_CIRCLE, shape_rotation=0,
@@ -111,12 +111,12 @@ def outline(image: Image, radius: float, color, return_only: bool = False, patte
     return outline_image
 
 
-def inner_outline(image: Image, radius, color, return_only=False, pattern=None):
+def inner_outline(image: Image.Image, radius, color, return_only=False, pattern=None):
     # Create a slightly larger image that can for sure hold the white outline coming up.
     slightlylargerimage = image.crop((-1, -1, image.width + 1, image.height + 1))
 
     # Get a white silhouette of the slightly larger image
-    a = roundalpha(slightlylargerimage).getchannel("A")
+    a = round_alpha(slightlylargerimage).getchannel("A")
     bwimage = Image.merge("RGBA", (a, a, a, a))
 
     # Get a white outline of the image
@@ -147,7 +147,9 @@ def transfer_alpha(alphaman, colorman):
     return Image.merge("RGBA", (r, g, b, a))
 
 
-def roundalpha(image: Image):
+def round_alpha(image: Image.Image):
+    if "A" not in image.mode:
+        raise Exception("Alpha channel required!")
     r, g, b, a = image.split()
     a = Image.eval(a, lambda x: round(x / 255) * 255)
     return Image.merge("RGBA", (r, g, b, a))
@@ -167,7 +169,7 @@ def lowestoftwoalphaas(returnme, otherimage):
     return Image.merge("RGBA", (r, g, b, a))
 
 
-def indent(image: Image):
+def indent(image: Image.Image):
     # Open
     indentsdir = "images/indents"
     while True:
@@ -228,8 +230,8 @@ def indent(image: Image):
     return image
 
 
-def offset_edge(image: Image, xoff, yoff):
-    image = roundalpha(image)
+def offset_edge(image: Image.Image, xoff, yoff):
+    image = round_alpha(image)
     a = image.getchannel("A")
     all_white_image = Image.new("L", a.size, 255)
     all_black_image = Image.new("L", a.size, 0)
@@ -240,12 +242,13 @@ def offset_edge(image: Image, xoff, yoff):
     all_black_image = all_black_image.convert("RGBA")
     all_black_image.alpha_composite(w)
     this_band_is_going_to_be_every_band = all_black_image.getchannel("R")
-    ret = Image.merge("RGBA", (this_band_is_going_to_be_every_band, this_band_is_going_to_be_every_band, this_band_is_going_to_be_every_band,
-                               this_band_is_going_to_be_every_band))
+    ret = Image.merge("RGBA", (
+    this_band_is_going_to_be_every_band, this_band_is_going_to_be_every_band, this_band_is_going_to_be_every_band,
+    this_band_is_going_to_be_every_band))
     return ret
 
 
-def crop_to_content(image: Image, force_top=None, force_left=None, force_bottom=None, force_right=None):
+def crop_to_content(image: Image.Image, force_top=None, force_left=None, force_bottom=None, force_right=None):
     """Returns an image cropped to its bounding box.
 
     Parameters:
@@ -284,7 +287,7 @@ def crop_to_content(image: Image, force_top=None, force_left=None, force_bottom=
     return image
 
 
-def resize_and_crop(image: Image, size):
+def resize_and_crop(image: Image.Image, size):
     """Matches one side by resizing and the other by cropping."""
     old_width, old_height = image.size
     new_width, new_height = size
@@ -303,7 +306,8 @@ def resize_and_crop(image: Image, size):
     return cropped_image
 
 
-def shading(image: Image, off_x, off_y, size, shrink, grow_back, color, alpha, blocker_multiplier=1, blurring=False):
+def shading(image: Image.Image, off_x, off_y, size, shrink, grow_back, color, alpha, blocker_multiplier=1,
+            blurring=False):
     """Outline-based shading."""
     has_not_blurred_yet = True
     # Get side to shade, and also the opposite side
@@ -355,30 +359,30 @@ def shading(image: Image, off_x, off_y, size, shrink, grow_back, color, alpha, b
     return image
 
 
-def sharplight(image: Image, disout, size, blocker_multiplier=1, blurring=False):
+def sharplight(image: Image.Image, disout, size, blocker_multiplier=1, blurring=False):
     """Sticks out from the edge, not rounded."""
     return shading(image, 1, 1, size + disout, disout, 0, colors.random_white(), 192,
                    blocker_multiplier=blocker_multiplier,
                    blurring=blurring)
 
 
-def roundedlight(image: Image, disout, size, blocker_multiplier=1, blurring=False):
+def roundedlight(image: Image.Image, disout, size, blocker_multiplier=1, blurring=False):
     """Sticks out from the edge, rounded."""
     return shading(image, 1, 1, size + disout, ((size + disout) / 2) - 1, disout / 2 - 1, colors.random_white(), 127,
                    blocker_multiplier=blocker_multiplier, blurring=blurring)
 
 
-def edgelight(image: Image, size, blocker_multiplier=1, blurring=False):
+def edgelight(image: Image.Image, size, blocker_multiplier=1, blurring=False):
     """Doesn't stick out from the edge."""
     return shading(image, 1, 1, size, 0, 0, colors.random_white(), 127, blocker_multiplier=blocker_multiplier,
                    blurring=blurring)
 
 
-def shadow(image: Image, size, blocker_multiplier=1, blurring=False):
+def shadow(image: Image.Image, size, blocker_multiplier=1, blurring=False):
     return shading(image, -1, -1, size, 0, 0, (0, 0, 0), 64, blocker_multiplier=blocker_multiplier, blurring=blurring)
 
 
-def shadingwrapper(image: Image):
+def shadingwrapper(image: Image.Image):
     choice = random.randint(0, 4)
     blurring = random.randint(0, 1)
     if choice == 0:
@@ -399,7 +403,7 @@ def shadingwrapper(image: Image):
     return image
 
 
-def directional_shading(image: Image):
+def directional_shading(image: Image.Image):
     """Draws gradient-y shading based on direction from the light source. Does this by repeatedly drawing the largest
     still-possible shortest-distance lines from inside the structure to an outline along the outside."""
     from analysis import get_all_opaque_pixels, get_edge_pixels, get_center_pixels
@@ -507,7 +511,7 @@ def directional_shading(image: Image):
     image.show()
 
 
-def metallic_directional_shading(image: Image):
+def metallic_directional_shading(image: Image.Image):
     """Draws gradient-y shading based on direction from the light source. Does this by repeatedly drawing the largest
     still-possible shortest-distance lines from inside the structure to an outline along the outside."""
     from analysis import get_all_opaque_pixels, get_edge_pixels, get_center_pixels
@@ -597,7 +601,7 @@ def metallic_directional_shading(image: Image):
     image.show()
 
 
-def go_deep_dream_yourself(image: Image, max_dim=None, steps=100):
+def go_deep_dream_yourself(image: Image.Image, max_dim=None, steps=100):
     """A lazy wrapper for something made by somebody cooler than me."""
     import tensorflow as tf
     import numpy as np
@@ -606,15 +610,15 @@ def go_deep_dream_yourself(image: Image, max_dim=None, steps=100):
     import PIL.Image
 
     # Normalize an image
-    def deprocess(image: Image):
+    def deprocess(image: Image.Image):
         image = 255 * (image + 1.0) / 2.0
         return tf.cast(image, tf.uint8)
 
     # Display an image
-    def show(image: Image):
+    def show(image: Image.Image):
         display.display(PIL.Image.fromarray(np.array(image)))
 
-    def backtopil(image: Image):
+    def backtopil(image: Image.Image):
         return PIL.Image.fromarray(np.array(image))
 
     # Downsizing the image makes it easier to work with.
@@ -636,7 +640,7 @@ def go_deep_dream_yourself(image: Image, max_dim=None, steps=100):
     # Create the feature extraction model
     dream_model = tf.keras.Model(inputs=base_model.input, outputs=layers)
 
-    def calc_loss(image: Image, model):
+    def calc_loss(image: Image.Image, model):
         # Pass forward the image through the model to retrieve the activations.
         # Converts the image into a batch of size 1.
         image_batch = tf.expand_dims(image, axis=0)
@@ -721,7 +725,7 @@ def go_deep_dream_yourself(image: Image, max_dim=None, steps=100):
     return dream_image
 
 
-def draw_star(draw: ImageDraw, xy: tuple[int, int], directions, point_count, inner_radius, outer_radius, fill):
+def draw_star(draw: ImageDraw.Draw, xy: tuple[int, int], directions, point_count, inner_radius, outer_radius, fill):
     """Draw a star. Meant to invoke PIL's geometry drawing functions."""
     x, y = xy
     inneroffset = 360 / point_count / 2
@@ -738,7 +742,7 @@ def draw_star(draw: ImageDraw, xy: tuple[int, int], directions, point_count, inn
     draw.ellipse((x - inner_radius, y - inner_radius, x + inner_radius, y + inner_radius), fill)
 
 
-def repaint(image: Image, function, growth_chance=0.5, recalculation_rate=10):
+def repaint(image: Image.Image, function, growth_chance=0.5, recalculation_rate=10):
     """Takes an image(A), and creates a blank image(B). Until none exist, picks pixels that are transparent(alpha 0) in
     Image B but not image A, and runs function on Image B using the information from that pixel on Image A.
     I suppose it could be thought of repainting image using function as the brush.
@@ -746,7 +750,7 @@ def repaint(image: Image, function, growth_chance=0.5, recalculation_rate=10):
     Parameters:
     image (PIL.Image): The original image.
     function (function): A function that takes the following arguments:
-        image (PIL.ImageDraw.ImageDraw): Image B.
+        image (PIL.ImageDraw.ImageDraw): Image.Image B.
         xy (Tuple): Where to draw on Image B.
         size (int): How large the shape to draw on Image B is.
         color (Tuple): What color to draw on Image B.
@@ -808,7 +812,7 @@ def simple_shape(image_or_draw, xy, radius, color, shape, rotation=None):
     rotation: Angle of the shape. Random if not provided.
 
     Returns:
-    PIL.ImageDraw.ImageDraw or PIL.Image: image. Doesn't make a copy, only returns for convenience."""
+    PIL.ImageDraw.ImageDraw or PIL.Image: Image.Image. Doesn't make a copy, only returns for convenience."""
     x, y = xy
     if rotation is None:
         rotation = random.random() * 360
@@ -880,7 +884,7 @@ def simple_shape(image_or_draw, xy, radius, color, shape, rotation=None):
     return image_or_draw
 
 
-def predict_thumbnail_size(original_size: tuple[int, int], new_size: Image):
+def predict_thumbnail_size(original_size: tuple[int, int], new_size: Image.Image):
     """Figures out what size an image of original_size would become if you used it to make a thumbnail of new_size.
 
     Parameters:
@@ -923,7 +927,8 @@ def multiline_textsize_but_it_works(text, font, max_width: int = 1500):
         return 0, 0
 
 
-def auto_breaking_text(image_or_draw, allowed_width, xy, text, fill=None, font=None, anchor=None, spacing=4, align='left',
+def auto_breaking_text(image_or_draw, allowed_width, xy, text, fill=None, font=None, anchor=None, spacing=4,
+                       align='left',
                        direction=None, features=None, language=None, stroke_width=0, stroke_fill=None,
                        embedded_color=False):
     """Draws PIL text and adds line breaks whenever it gets too wide.
@@ -962,17 +967,17 @@ def auto_breaking_text(image_or_draw, allowed_width, xy, text, fill=None, font=N
     draw.multiline_text(xy, usingstring, fill=fill, font=font)
 
 
-def pil_to_wand(image: Image):
+def pil_to_wand(image: Image.Image):
     stream = io.BytesIO()
     image.save(stream, format="PNG")
     return WandImage(blob=stream.getvalue())
 
 
-def wand_to_pil(image: Image):
+def wand_to_pil(image: Image.Image):
     return Image.open(io.BytesIO(image.make_blob("png")))
 
 
-def enlargeable_thumbnail(image: Image, size, resample=None):
+def enlargeable_thumbnail(image: Image.Image, size, resample=None):
     """Same as PIL.Image.thumbnail, but can also grow to fit the required size."""
     if image.size[0] > size[0] or image.size[1] > size[1]:
         image.thumbnail(size, resample=resample)
@@ -988,7 +993,7 @@ def enlargeable_thumbnail(image: Image, size, resample=None):
             return image.resize((newwidth, newheight), resample=resample)
 
 
-def square_crop(image: Image):
+def square_crop(image: Image.Image):
     """Adds extra size on both sides of an image to form a square."""
     if image.width > image.height:
         # These are separate so that one can be one pixel larger if it's an odd number
@@ -1044,11 +1049,12 @@ def dynamically_sized_text_image(text: str, size: tuple[int, int], font=None, fi
 
         text_line_image = Image.new("RGBA", (width * 18, height * 4))
         text_line_draw = ImageDraw.Draw(text_line_image)
-        text_line_draw.text((text_line_image.size[0] // 2, text_line_image.size[1] // 2), tld["s"], font=font, fill=fill,
-                          align="center")
+        text_line_draw.text((text_line_image.size[0] // 2, text_line_image.size[1] // 2), tld["s"], font=font,
+                            fill=fill,
+                            align="center")
         text_line_image = crop_to_content(text_line_image)
         text_line_image.thumbnail((width, room_remaining / there_is_space_for_n_lines_required // current_line_divider),
-                                resample=Image.LANCZOS)
+                                  resample=Image.LANCZOS)
 
         buildup[tld["pos"]] = text_line_image
         room_taken += text_line_image.size[1]
@@ -1067,25 +1073,21 @@ def dynamically_sized_text_image(text: str, size: tuple[int, int], font=None, fi
     return textimage
 
 
-def split_image():
-    pass
-
-
-def shift_hue_by(image: Image, by: int) -> Image:
+def shift_hue_by(image: Image.Image, by: int) -> Image:
     image = image.convert("HSV")
     h, s, v = image.split()
     h = Image.eval(h, lambda x: (x + by) % 255)
     return Image.merge("HSV", (h, s, v))
 
 
-def shift_hue_towards(image: Image, towards: int) -> Image:
+def shift_hue_towards(image: Image.Image, towards: int) -> Image:
     image = image.convert("HSV")
     average_hue = colors.average_color(image.getchannel("H"))
     by = towards - average_hue
     return shift_hue_by(image, by)
 
 
-def shift_bands_by(image: Image, by: Iterable[int]) -> Image:
+def shift_bands_by(image: Image.Image, by: Iterable[int]) -> Image:
     bands = []
     for index, band in enumerate(image.split()):
         if image.mode[index] == "H":  # Pretty sure H is the only one that "loops"?
@@ -1096,162 +1098,14 @@ def shift_bands_by(image: Image, by: Iterable[int]) -> Image:
     return Image.merge(image.mode, bands)
 
 
-def shift_bands_towards(image: Image, towards: Iterable[int]) -> Image:
+def shift_bands_towards(image: Image.Image, towards: Iterable[int]) -> Image:
     average_color = colors.average_color(image)
     return shift_bands_by(image, [x[0] - x[1] for x in zip(towards, average_color)])
 
 
-def buttonize(image: Image, distance_from_edge: int = 5, outermost_color=(0, 0, 0), innermost_color=(255, 255, 255)):
+def buttonize(image: Image.Image, distance_from_edge: int = 5, outermost_color=(0, 0, 0),
+              innermost_color=(255, 255, 255)):
     for current_distance_from_edge in list(range(distance_from_edge))[::-1]:
         image = inner_outline(image, current_distance_from_edge, colors.merge_colors(outermost_color, innermost_color,
                                                                                      current_distance_from_edge / distance_from_edge))
     return image
-
-
-def voronoi_edges(image: Image, points: Sequence[tuple[int, int]], color=(0, 0, 0), width=1):
-    voronoi = spatial.Voronoi(points, furthest_site=False)
-    draw = ImageDraw.Draw(image)
-    for region in voronoi.regions:
-        if -1 in region:
-            continue
-        points_on_line = []
-        for vert_index in region:
-            points_on_line.append(tuple(voronoi.vertices[vert_index]))
-        if len(points_on_line) == 0:
-            continue
-        print(points_on_line)
-        points_on_line.append((points_on_line[0]))
-        draw.line(points_on_line, color, width)
-    # for point in point_count:
-    #     draw.ellipse([
-    #         point[0]-5,
-    #         point[1]-5,
-    #         point[0]+5,
-    #         point[1]+5,
-    #     ], 0XFF0000)
-    return image
-
-
-if __name__ == "__main__":
-    image = Image.new("RGB", (1272, 1272), 0xffffff)
-    layers = 12
-    sides = 16
-    points = []
-    for layer in range(1, layers):
-        distance = (1272 ** 2 * 2) ** 0.5 / layers * layer / 2
-        for side in range(sides):
-            angle = math.pi * 2 / sides * (side + (1 / 2 * (layer % 2)))
-            points.append((
-                1272 / 2 + math.sin(angle) * distance,
-                1272 / 2 + math.cos(angle) * distance,
-            ))
-    voronoi_edges(image, points, width=10)
-    image.save("crazy.png")
-    exit()
-    path = r"S:\Models\Custom\Gloomhaven Tokens\buttonized\attempt"
-    for file in os.listdir(path):
-        image = Image.open(os.path.join(path, file))
-        buttonize(image, 50).save(os.path.join(path, "modifiedd_" + file))
-    exit()
-    dynamiclysizedtextimage("test\nertdjhnguerdhjguierjhuijejsrih", (50, 50)).show()
-    exit()
-    # import numpy as np
-    # import cv2
-    #
-    # v = cv2.imread(r'S:\Code\django\clock\app\static\app\wallpapers\chosen\gen\hippo.png', 0)
-    # v = v.astype(np.uint)
-    # s = cv2.cvtColor(v, cv2.COLOR_BGR2GRAY)
-    # s = cv2.Laplacian(s, cv2.CV_16S, ksize=3)
-    # s = cv2.convertScaleAbs(s)
-    # cv2.imshow('nier',s)
-    #
-    # cv2.waitKey(0)
-    #
-    # import bezier
-    # nodes1 = np.asfortranarray([
-    #     [0.0, 0.5, 1.0],
-    #     [0.0, 1.0, 0.0],
-    # ])
-    # curve1 = bezier.Curve(nodes1, degree=2)
-    #
-    # nodes2 = np.asfortranarray([
-    # [0.0, 0.25, 0.5, 0.75, 1.0],
-    # [0.0, 2.0, -2.0, 2.0, 0.0],
-    # ])
-    # curve2 = bezier.Curve.from_nodes(nodes2)
-    # intersections = curve1.intersect(curve2)
-    # intersections
-    # np.asfortranarray([[0.31101776, 0.68898224, 0., 1.],
-    # [0.31101776, 0.68898224, 0., 1.]])
-    # s_vals = np.asfortranarray(intersections[0, :])
-    # point_count = curve1.evaluate_multi(s_vals)
-    #
-    # import seaborn
-    # import matplotlib.pyplot as plt
-    # seaborn.set()
-    # ax = curve1.plot(num_pts=256)
-    # _ = curve2.plot(num_pts=256, ax=ax)
-    # lines = ax.plot( point_count[0, :], point_count[1, :], marker = "o", linestyle = "None", color = "black")
-    # _ = ax.axis("scaled")
-    # _ = ax.set_xlim(-0.125, 1.125)
-    # _ = ax.set_ylim(-0.0625, 0.625)
-    # plt.show()
-    #
-    # nodes = np.asfortranarray([
-    #
-    #     [0.0, 0.625, 1.0],
-    #
-    #     [0.0, 0.5, 0.5],
-    #
-    # ])
-    #
-    # curve = bezier.Curve(nodes, degree=2)
-    # curve.plot(5)
-    # plt.show()
-    # exit()
-    image = Image.new("RGBA", (1200, 1200))
-    draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype("segoescb.ttf", 120)
-    draw.multiline_text((5, 5), "QBR", font=font, fill=(255, 0, 0))  # QWERTYUIOPqwertyuiop
-    image = croptocontent(image)
-    # image = outline(image, 1, (0, 0, 0))
-    directionalshading(image)
-    image.show()
-    exit()
-    path = r"S:\Code\django\clock\app\static\app\wallpapers\chosen\\"
-    imagename = random.choice(os.listdir(path))
-    image = Image.open(path + imagename).convert("RGBA")
-    # image = enlargablethumbnail(image, (10000,10000), Image.LANCZOS)
-    # # power = 8
-    # # image.thumbnail((2**power, 2**power))
-    # print(image.size)
-    # exit()
-    # allcolors = [(r,g,b) for r in range(0,256,4) for g in range(0,256,4) for b in range(0,256,4)]
-    # colors.showpalettecube(allcolors)
-    # colors.showpalettecube(allcolors, back=True)
-    # common = colors.getmostcommoncolors(image, 1)
-    common = colors.get_most_representative_colors(image)
-    image.show()
-    colors.show_palette_cube(common)
-    colors.show_palette_cube(common, back=True)
-    # colors.showpalette(colors.getmostrepresentativecolors(image, 0.5, 0.5), 1)
-    # repaint(image, lambda newimage, xy, size, color:
-    #         newimage.alpha_composite(
-    #             shadow(
-    #                 edgelight(
-    #                 (
-    #                     simpleshape
-    #                     (
-    #                         Image.new("RGBA", image.size),
-    #                         xy,
-    #                         size*2,
-    #                         color,
-    #                         SHAPE_DIAMOND,
-    #                         rotation=90
-    #                     )
-    #                 ),
-    #                 2
-    #             ),
-    #             2
-    #         )
-    # )).show()
