@@ -1,6 +1,4 @@
 from PIL import ImageDraw, Image
-from scipy import spatial
-from scipy.spatial import voronoi_plot_2d
 
 from zsil.internal import get_distances_to_points
 
@@ -77,7 +75,20 @@ def get_distances_to_edges(image: Image.Image):
     return get_distances_to_points(start_points, end_points)
 
 
-def get_edge_points(image: Image.Image):
+def get_edge_points(image: Image.Image) -> set[tuple[int, int]]:
+    """
+
+    Parameters
+    ----------
+    image : Image.Image
+
+
+    Returns
+    -------
+    set[tuple[int, int]]
+
+
+    """
     from zsil.cool_stuff import round_alpha
     image = round_alpha(image)
     edge_pixels = get_edge_pixels(image)
