@@ -5,7 +5,7 @@ import unittest
 from PIL import Image
 import sys
 sys.path.append("..") # Adds higher directory to python modules path.
-from ZachsStupidImageLibrary import colors
+import zsil.colors
 
 
 
