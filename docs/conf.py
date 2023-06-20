@@ -6,15 +6,18 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "[Zoe's Resume] Generator"
+project = "zsil"
 copyright = '2023, Zoe Zablotsky'
 author = 'Zoe Zablotsky'
+
+import sys, os
+sys.path.append(os.path.join(__file__, "..", ".."))
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    'sphinx.ext.autodoc'
+'sphinx.ext.napoleon', "sphinx_autodoc_typehints"
 ]
 
 autodoc_member_order = 'bysource'
@@ -28,5 +31,5 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'alabaster'
+html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
