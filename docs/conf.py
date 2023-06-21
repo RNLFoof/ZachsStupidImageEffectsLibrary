@@ -11,8 +11,7 @@ copyright = '2023, Zoe Zablotsky'
 author = 'Zoe Zablotsky'
 
 import sys, os
-sys.path.append(os.path.join(__file__, "..", ".."))
-sys.path.append(os.path.join(__file__, "..", "..", ".."))
+sys.path.insert(0, os.path.abspath('..'))
 print(__file__)
 
 # -- General configuration ---------------------------------------------------
