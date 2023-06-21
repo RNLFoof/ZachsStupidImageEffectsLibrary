@@ -14,7 +14,7 @@ setup(
    url="https://github.com/RNLFoof/zsil",
    packages=[],
    install_requires=['Pillow', 'wand'],
-   extra_requires={
+   extras_require={
       'docs': [
          "sphinx-rtd-theme",
          "sphinx-autodoc-typehints",
