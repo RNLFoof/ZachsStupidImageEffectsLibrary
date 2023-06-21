@@ -17,6 +17,4 @@ python:
       path: .
       extra_requirements:
         - docs
-        - sphinx-autodoc-typehints
-        - sphinx-rtd-theme
 
