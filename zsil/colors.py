@@ -284,13 +284,16 @@ def get_color_usage(image: Image):
 def get_most_common_colors(image: Image, fraction=0.1):
     """Returns a list of the most common colors in an image.
 
-    Parameters:
-    image (PIL.Image): The image you want info on.
-    fraction (float): A decimal between 0 and 1 indicating how far from the most common colors you want.
-                      For example, 0.1 returns the fewest colors that, combined, make up 10% of the image.
+    Parameters
+    ----------
+    image
+        The image you want info on.
+    fraction
+        A decimal between 0 and 1 indicating how far from the most common colors you want. For example, 0.1 returns the fewest colors that, combined, make up 10% of the image.
 
-    Returns:
-    list: The most common colors."""
+    Returns
+    -------
+        The most common colors."""
     color_usage = get_color_usage(image)
     total_desired = image.width * image.height * fraction
     total = 0
@@ -304,18 +307,20 @@ def get_most_common_colors(image: Image, fraction=0.1):
 
 
 def get_most_representative_colors(image: Image, common_fraction=0.1, representative_fraction=0.1) -> list[tuple[int, int, int]]:
-    """Returns a list of the most "representative" colors in an image, determined by their proximity to the most common
-    colors of the image liquid rescaled to half size.
+    """Returns a list of the most "representative" colors in an image, determined by their proximity to the most common colors of the image liquid rescaled to half size.
 
-    Parameters:
-    image (PIL.Image): The image you want info on.
-    common_fraction (float): A decimal between 0 and 1 indicating how far from the most common colors you want.
-                      For example, 0.1 returns the fewest colors that, combined, make up 10% of the image.
-    representative_fraction (float): A decimal between 0 and 1 indicating how far from the most representative colors you want.
-                      For example, 0.1 returns the fewest colors that, combined, make up 10% of the image.
+    Parameters
+    ----------
+    image
+        The image you want info on.
+    common_fraction
+        A decimal between 0 and 1 indicating how far from the most common colors you want. For example, 0.1 returns the fewest colors that, combined, make up 10% of the image.
+    representative_fraction
+        A decimal between 0 and 1 indicating how far from the most representative colors you want. For example, 0.1 returns the fewest colors that, combined, make up 10% of the image.
 
-    Returns:
-    list: The most representative colors."""
+    Returns
+    -------
+        The most representative colors."""
     from zsil.cool_stuff import pil_to_wand, wand_to_pil
 
     quantities = get_color_usage(image)

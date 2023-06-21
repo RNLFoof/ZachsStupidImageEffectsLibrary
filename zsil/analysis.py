@@ -6,11 +6,14 @@ from zsil.internal import get_distances_to_points
 def get_all_opaque_pixels(image: Image.Image) -> set[tuple[int, int]]:
     """Returns a set of all pixels whose alpha is larger than zero.
 
-    Parameters:
-    image (PIL.Image): The image to analyze.
+    Parameters
+    ----------
+    image
+        The image to analyze.
 
-    Returns:
-    set[tuple[int, int]]: All pixels whose alpha is larger than zero."""
+    Returns
+    -------
+        All pixels whose alpha is larger than zero."""
     alpha_band = image.split()[image.getbands().index("A")]
     alpha_band_loaded = alpha_band.load()
     points = set()
