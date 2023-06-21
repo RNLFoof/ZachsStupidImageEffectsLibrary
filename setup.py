@@ -13,7 +13,11 @@ setup(
    author='Zachary Zablotsky',
    url="https://github.com/RNLFoof/zsil",
    packages=[],
-   install_requires=['Pillow', 'wand'],
+   install_requires=[
+      'Pillow', 'wand',
+         "sphinx-rtd-theme",
+         "sphinx-autodoc-typehints",
+   ],
    extras_require={
       'docs': [
          "sphinx-rtd-theme",
