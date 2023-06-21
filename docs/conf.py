@@ -12,6 +12,8 @@ author = 'Zoe Zablotsky'
 
 import sys, os
 sys.path.append(os.path.join(__file__, "..", ".."))
+sys.path.append(os.path.join(__file__, "..", "..", ".."))
+print(__file__)
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
