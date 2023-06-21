@@ -27,9 +27,9 @@ def lengthdir_x(length: float, direction: float) -> float:
 
     Parameters
     ----------
-    length : float
+    length
         The length or distance.
-    direction : float
+    direction
         The direction, in degrees.
 
     Returns
@@ -63,18 +63,17 @@ def point_distance(x1: float, y1: float, x2: float, y2: float) -> float:
 
     Parameters
     ----------
-    x1 : float
+    x1
         The x component of the first point.
-    y1 : float
+    y1
         The y component of the first point.
-    x2 : float
+    x2
         The x component of the second point.
-    y2 : float
+    y2
         The y component of the second point.
 
     Returns
     -------
-    float
         The distance between the two points.
     """
     return ((abs(x2 - x1) ** 2) + (abs(y2 - y1) ** 2)) ** 0.5
