@@ -1,6 +1,13 @@
-from PIL import ImageDraw, Image
+"""
+    Functions that provide information about an image without actually affecting anything.
+"""
 
-from zsil.internal import get_distances_to_points
+import typing
+from typing import Callable, Optional, Generator
+
+from PIL import Image, PyAccess
+
+from zsil.internal import get_distances_to_points, PotentialLine
 
 
 def get_all_opaque_pixels(image: Image.Image) -> set[tuple[int, int]]:
@@ -27,11 +34,14 @@ def get_all_opaque_pixels(image: Image.Image) -> set[tuple[int, int]]:
 def get_all_transparent_pixels(image: Image.Image) -> set[tuple[int, int]]:
     """Returns a set of all pixels whose alpha is zero.
 
-    Parameters:
-    image (PIL.Image): The image to analyze.
+    Parameters
+    ----------
+    image
+        The image to analyze.
 
-    Returns:
-    set[tuple[int, int]]: All pixels whose alpha is zero."""
+    Returns
+    -------
+        All pixels whose alpha is zero."""
     alpha_band = image.split()[image.getbands().index("A")]
     alpha_band_loaded = alpha_band.load()
     points = set()
@@ -45,32 +55,32 @@ def get_all_transparent_pixels(image: Image.Image) -> set[tuple[int, int]]:
 def get_edge_pixels(image: Image.Image) -> set[tuple[int, int]]:
     """Returns a set of all opaque pixels right next to transparent ones.
 
-    Parameters:
-    image (PIL.Image): The image to analyze.
+    Parameters
+    ----------
+    image
+        The image to analyze.
 
-    Returns:
-    set: All opaque pixels right next to transparent ones."""
+    Returns
+    -------
+        All opaque pixels right next to transparent ones."""
     from zsil.cool_stuff import inner_outline
     inner_outline_image = inner_outline(image, 1, (255, 0, 0), return_only=True)
     return get_all_opaque_pixels(inner_outline_image)
 
 
-def get_distances_to_edges(image: Image.Image):
+def get_distances_to_edges(image: Image.Image) -> list[PotentialLine]:
     """Returns a list of objects indicating the closest transparent pixel to each non-transparent pixel.
 
-    Parameters:
-    image (PIL.Image): The image to analyze.
+    Parameters
+    ----------
+    image
+        The image to analyze.
 
-    Returns:
-    list: List of objects indicating the closest transparent pixel to each non-transparent pixel."""
+    Returns
+    -------
+        List of objects indicating the closest transparent pixel to each non-transparent pixel."""
     # Get possible end_points
     end_points = get_edge_pixels(image)
-    draw = ImageDraw.Draw(image)
-    #
-    # for pixel in end_points:
-    #     draw.point(pixel, (0, 0, 0))
-    #
-    # image.show()
 
     # Get possible starting point_count
     start_points = get_all_opaque_pixels(image)
@@ -79,19 +89,16 @@ def get_distances_to_edges(image: Image.Image):
 
 
 def get_edge_points(image: Image.Image) -> set[tuple[int, int]]:
-    """
+    """Returns all integer points on a border between a transparent pixel and an opaque one.
 
     Parameters
     ----------
-    image : Image.Image
-
+    image
+        The image to analyze.
 
     Returns
     -------
-    set[tuple[int, int]]
-
-
-    """
+        All integer points on a border between a transparent pixel and an opaque one."""
     from zsil.cool_stuff import round_alpha
     image = round_alpha(image)
     edge_pixels = get_edge_pixels(image)
@@ -102,6 +109,7 @@ def get_edge_points(image: Image.Image) -> set[tuple[int, int]]:
             for y_corner in [-1, 1]:
                 addable_offset = (0.5 + x_corner / 2, 0.5 + y_corner / 2)
                 addable = tuple([int(ep + ao) for ep, ao in zip(edge_pixel, addable_offset)])
+                addable = typing.cast(tuple[int, int], addable)
 
                 # No need to waste processing time if this one is already in there
                 if addable in edge_points:
@@ -124,22 +132,31 @@ def get_edge_points(image: Image.Image) -> set[tuple[int, int]]:
     return edge_points
 
 
-def pixel_filter(function, img, imgdata=None):
+def pixel_filter(
+        function: Callable[[tuple[int, int]], bool],
+        image: Image.Image,
+        image_data: Optional[PyAccess.PyAccess] = None
+) -> Generator[tuple[int, int], None, None]:
     """Returns the coordinates of all pixels that match a function.
 
-    Parameters:
-    function (function): A function that takes a tuple as input and returns a boolean. Determines what pixels to return.
-    img (PIL.Image): How many pixels out the outline stretches.
-    imgdata (PIL.PixelAccess): The result of img.load(), in case you had it loaded already. Generated if not provided.
+    Parameters
+    ----------
+    function
+        A function that takes a tuple as input and returns a boolean. Determines what pixels to return.
+    image
+        How many pixels out the outline stretches.
+    image_data
+        The result of image.load(), in case you had it loaded already. Generated if not provided.
 
-    Yields:
-    tuple: All coordinates to which function returned true."""
-    # Create imgdata if it's not provided
-    if imgdata is None:
-        imgdata = img.load()
+    Yields
+    ------
+        All coordinates for which the provided function returned True."""
+    # Create image_data if it's not provided
+    if image_data is None:
+        image_data = image.load()
 
-    # Gee I fuckin' wonder
-    for x in range(img.size[0]):
-        for y in range(img.size[1]):
-            if function(imgdata[x, y]):
+    # The actual filtering
+    for x in range(image.size[0]):
+        for y in range(image.size[1]):
+            if function(image_data[x, y]):
                 yield x, y
