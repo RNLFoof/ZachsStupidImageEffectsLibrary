@@ -1,4 +1,8 @@
-import colorsys
+"""
+    Functions to do with generating or manipulating colors independently of any specific image.
+"""
+import colorsys  # TODO Should be removed
+import typing
 from typing import Union, Tuple, Iterator
 
 import requests
@@ -12,23 +16,63 @@ import numpy
 from math import sqrt
 
 
-def convert_1_to_255(col):
-    c = list(col)
+# TODO Should be removed
+def convert_1_to_255(color: tuple[float, ...]) -> tuple[int, ...]:
+    """Multiplies all entries of a tuple by 255, with the intention of changing a color expressed as a series of 0-1
+    values to one expressed as a series of 0-255 values.
+
+    Parameters
+    ----------
+    color
+        A color expressed as a series of values ranging from 0 to 1.
+
+    Returns
+    -------
+        The aforementioned color expressed as a series of values ranging from 0 to 255.
+    """
+    c = list(color)
     for n, x in enumerate(c):
         c[n] = round(x * 255)
     c = tuple(c)
     return c
 
 
-def convert_255_to_1(col):
-    c = list(col)
+# TODO Should be removed
+def convert_255_to_1(color: tuple[int, ...]) -> tuple[float, ...]:
+    """Divides all entries of a tuple by 255, with the intention of changing a color expressed as a series of 0-255
+    values to one expressed as a series of 0-1 values.
+
+    Parameters
+    ----------
+    color
+        A color expressed as a series of values ranging from 0 to 255.
+
+    Returns
+    -------
+        The aforementioned color expressed as a series of values ranging from 0 to 1.
+    """
+    c = list(color)
     for n, x in enumerate(c):
         c[n] = x / 255
     c = tuple(c)
+    c = typing.cast(tuple[float], c)
     return c
 
 
-def random_white(take_hue_from=None):
+# TODO Shouldn't use colorsys
+# TODO Should have optional ranges
+def random_white(take_hue_from: typing.Optional[tuple[int, int, int]] = None) -> tuple[int, int, int]:
+    """Generates a random off-white.
+
+    Parameters
+    ----------
+    take_hue_from
+        An RGB color whose hue should be used instead of a randomly generated one.
+
+    Returns
+    -------
+        The aforementioned off-white.
+    """
     if take_hue_from:
         hue = colorsys.rgb_to_hsv(*convert_255_to_1(take_hue_from))[0]
     else:
@@ -59,7 +103,14 @@ def random_white(take_hue_from=None):
     return c
 
 
+# TODO Should be integrated with random_white
 def random_black():
+    """Generates a random off-black.
+
+    Returns
+    -------
+        The aforementioned off-black.
+    """
     if rando.randint(0, 1):
         c = colorsys.hsv_to_rgb(
             rando.uniform(180 / 360, 246 / 360),
@@ -90,6 +141,7 @@ def merge_colors(color_1, color_2, amount=None):
     return tuple(newcolor)
 
 
+# TODO Shouldn't use colorsys
 def variant_of(color):
     a = None
     if len(color) > 3:
@@ -123,13 +175,15 @@ def color_mind(input):
     return ret
 
 
-def average_color(colors: Union[Iterator | Image.Image], mode: str = "RGBA", alpha: Image.Image = None) -> Tuple[int, ]:
+def average_color(colors: Union[Iterator | Image.Image], mode: str = "RGBA", alpha: Image.Image = None) -> Tuple[int, ...]:
     """Averages out several colors.
 
-    Parameters:
+    Parameters
+    ----------
     colors (list | PIL.Image): List of color tuples, or an image.
 
-    Returns:
+    Returns
+    -------
     tuple: Average color."""
 
     ret = []
@@ -138,7 +192,7 @@ def average_color(colors: Union[Iterator | Image.Image], mode: str = "RGBA", alp
         colors = list(colors.getdata())
     mode = mode[:len(colors[0])]
 
-    if hasattr(colors[0],'__iter__'):
+    if hasattr(colors[0], '__iter__'):
         weights = None
         a_band = None
         if alpha is not None:
@@ -165,21 +219,25 @@ def average_color(colors: Union[Iterator | Image.Image], mode: str = "RGBA", alp
     else:
         return mean(colors)
 
-def average_hue(colors: Union[Iterator | Image.Image]) -> int:
+
+def average_hue(colors: Union[Iterator | Image.Image]) -> float:
     """Gets the average hue from several colors. Weighs pixels differently based on their saturation, value, and alpha.
 
-    Parameters:
-    colors (list | PIL.Image): List of color tuples, or an image.
+    Parameters
+    ----------
+    colors
+        List of color tuples, or an image.
 
-    Returns:
-    int: Average hue."""
+    Returns
+    -------
+        Average hue."""
     if isinstance(colors, Image.Image):
         colors = numpy.hstack(colors.convert("HSV").getdata(), colors.getchannel('A').getdata())
 
     if hasattr(colors[0], '__iter__'):
         weights = []
         for color in colors:
-            weights.append(numpy.prod(list(band/255 for band in color[1:])))
+            weights.append(numpy.prod(list(band / 255 for band in color[1:])))
         return numpy.average(
             list(color[0] for color in colors),
             weights=weights
@@ -266,10 +324,13 @@ def get_hue(rgb):
 def get_color_usage(image: Image):
     """Counts how many times each rgba value is used. Or whatever mode the image is in.
 
-    Parameters:
-    image (PIL.Image): The image you want info on.
+    Parameters
+    ----------
+    image
+        The image you want info on.
 
-    Returns:
+    Returns
+    -------
     dict: rgba(?) as key, quantity as value."""
     image_data = image.load()
     quantities = {}
@@ -306,7 +367,8 @@ def get_most_common_colors(image: Image, fraction=0.1):
     return most_common
 
 
-def get_most_representative_colors(image: Image, common_fraction=0.1, representative_fraction=0.1) -> list[tuple[int, int, int]]:
+def get_most_representative_colors(image: Image, common_fraction=0.1, representative_fraction=0.1) -> list[
+    tuple[int, int, int]]:
     """Returns a list of the most "representative" colors in an image, determined by their proximity to the most common colors of the image liquid rescaled to half size.
 
     Parameters
@@ -350,5 +412,6 @@ def get_most_representative_colors(image: Image, common_fraction=0.1, representa
             break
     return representative_colors
 
-def tuple_to_hex(color: tuple[int, ]):
+
+def tuple_to_hex(color: tuple[int,]):
     return "".join([f"{x:x}".ljust(2, "0") for x in color])
