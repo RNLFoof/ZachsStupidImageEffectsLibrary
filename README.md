@@ -1,7 +1,3 @@
 # Zoe's Stupid Image Library
 
-Functions I made for a larger, stupider project. I figured it would make more sense to separate them.
-
-If you actually decide to use this:
-1) What? Are you stupid?
-2) Let me know, so I can avoid changing things out from under you.
+An image library for Python that I created to house my image behavior as I created it for other projects.
