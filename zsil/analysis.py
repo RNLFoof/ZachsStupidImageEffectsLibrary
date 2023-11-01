@@ -1,13 +1,50 @@
 """
     Functions that provide information about an image without actually affecting anything.
 """
-
+import math
 import typing
-from typing import Callable, Optional, Generator
+from typing import Callable, Optional, Generator, Sequence, Self
 
 from PIL import Image, PyAccess
 
 from zsil.internal import get_distances_to_points, PotentialLine
+
+
+class Vector(tuple[float, float]):
+    def __new__(cls, *args):
+        if len(args) == 1:
+            return Vector(*args[0])
+        elif len(args) == 2:
+            for arg in args:
+                if not isinstance(arg, float) and not isinstance(arg, int):
+                    raise Exception(f"WHAT ARE YOU FEEDING ME (got {arg}, which isn't an int or float)")
+            return super(Vector, cls).__new__(cls, args)
+        raise Exception("WHAT")
+
+    def __add__(self, other: Self) -> Self:
+        return Vector(map(sum, zip(self, other)))
+
+    def __mul__(self, other: float) -> Self:
+        return Vector(x * other for x in self)
+
+    def __truediv__(self, other: float) -> Self:
+        return Vector(x / other for x in self)
+
+    def __floordiv__(self, other: float) -> Self:
+        return Vector(x // other for x in self)
+
+    def __round__(self) -> Self:
+        return Vector(round(x) for x in self)
+
+    @property
+    def x(self) -> float:
+        return self[0]
+
+    @property
+    def y(self) -> float:
+        return self[1]
+
+Path = Sequence[Vector]
 
 
 def get_all_opaque_pixels(image: Image.Image) -> set[tuple[int, int]]:
@@ -27,7 +64,7 @@ def get_all_opaque_pixels(image: Image.Image) -> set[tuple[int, int]]:
     for x in range(image.width):
         for y in range(image.height):
             if alpha_band_loaded[(x, y)] > 0:
-                points.add((x, y))
+                points.add(Vector(x, y))
     return points
 
 
@@ -88,7 +125,7 @@ def get_distances_to_edges(image: Image.Image) -> list[PotentialLine]:
     return get_distances_to_points(start_points, end_points)
 
 
-def get_edge_points(image: Image.Image) -> set[tuple[int, int]]:
+def get_edge_points(image: Image.Image) -> set[Vector]:
     """Returns all integer points on a border between a transparent pixel and an opaque one.
 
     Parameters
@@ -108,7 +145,7 @@ def get_edge_points(image: Image.Image) -> set[tuple[int, int]]:
         for x_corner in [-1, 1]:
             for y_corner in [-1, 1]:
                 addable_offset = (0.5 + x_corner / 2, 0.5 + y_corner / 2)
-                addable = tuple([int(ep + ao) for ep, ao in zip(edge_pixel, addable_offset)])
+                addable = Vector([int(ep + ao) for ep, ao in zip(edge_pixel, addable_offset)])
                 addable = typing.cast(tuple[int, int], addable)
 
                 # No need to waste processing time if this one is already in there
