@@ -1,5 +1,8 @@
 import math
 
+from numpy import pi
+
+tau = pi * 2
 
 class PotentialLine:
     """
@@ -80,8 +83,11 @@ def point_distance(x1: float, y1: float, x2: float, y2: float) -> float:
 
 
 def point_direction(x1: float, y1: float, x2: float, y2: float) -> float:
-    """Get the direction from the first point to the second point in degrees."""
-    return -(math.atan2(x2 - x1, y2 - y1) / math.pi * 180 - 90) % 360
+    """Get the direction from the first point to the second point in radians between 0 and tau.
+
+    Treats negatives as up, like they are in images, and not down like on graphs."""
+    # % tau is necessary because atan2 returns between pi and -pi
+    return math.atan2(-y2 - -y1, x2 - x1) % tau
 
 
 def get_distances_to_points(start_points: set[tuple[float, float]], end_points: set[tuple[float, float]]) -> list[PotentialLine]:
