@@ -1145,8 +1145,17 @@ def subdivide_path(path: Path, repetitions=1):
     return subdivided_path
 
 
+@dataclass
+class GenerateFromNearestKeyParams:
+    image: Image.Image
+    coordinates: tuple[int, int]
+    nearest_point: quads.Point
+    direction: Optional[float]
+    distance: Optional[float]
+
 def generate_from_nearest(image: Image, points: Iterable[Iterable[int]],
-                          key: Callable[[Image.Image, tuple[int, int], tuple[float, float]], None | tuple[int, ...]]):
+                          key: Callable[[GenerateFromNearestKeyParams], None | tuple[int, ...]],
+                          include_direction=False, include_distance=False):
     tree = quads.QuadTree((image.width // 2, image.height // 2), *image.size)
     for point in points:
         tree.insert(point)
@@ -1155,6 +1164,18 @@ def generate_from_nearest(image: Image, points: Iterable[Iterable[int]],
     for x in range(image.width):
         for y in range(image.height):
             coordinates = (x, y)
-            result = key(image, coordinates, tree.nearest_neighbors(coordinates, 1)[0])
+            nearest_point = tree.nearest_neighbors(coordinates, 1)[0]
+            direction = point_direction(*coordinates, nearest_point.x, nearest_point.y) if include_direction else None
+            distance = point_distance(*coordinates, nearest_point.x, nearest_point.y) if include_distance else None
+
+            params = GenerateFromNearestKeyParams(
+                image=image,
+                coordinates=coordinates,
+                nearest_point=nearest_point,
+                direction=direction,
+                distance=distance
+            )
+
+            result = key(params)
             if result is not None:
                 draw.point(coordinates, result)

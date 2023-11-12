@@ -50,14 +50,14 @@ def test_get_center_pixels():
 
 class TestGenerateFromNearest:
     @staticmethod
-    def test_directional():
+    def test_include_direction():
         image = Image.new("L", (3, 3))
         points = [(1, 1)]
 
-        def callable(image: Image, coordinate: tuple[int, int], nearest: Point) -> tuple[int, int, int]:
-            return int(point_direction(*coordinate, nearest.x, nearest.y) / tau * 8)
+        def callable(p: GenerateFromNearestKeyParams) -> int:
+            return int(p.direction / tau * 8)
 
-        generate_from_nearest(image, points, callable)
+        generate_from_nearest(image, points, callable, include_direction=True)
         assert np.array_equal(np.asarray(image), np.array([
             [7, 6, 5],
             [0, 0, 4],
@@ -65,14 +65,37 @@ class TestGenerateFromNearest:
         ]))
 
     @staticmethod
-    def test_distance():
+    def test_include_distance():
+        image = Image.new("L", (3, 3))
+        points = [(2, 2)]
+        pd = possible_distances = [
+            0,
+            round((1 ** 2 + 0 ** 2) ** 0.5 * 10),
+            round((1 ** 2 + 1 ** 2) ** 0.5 * 10),
+            round((2 ** 2 + 0 ** 2) ** 0.5 * 10),
+            round((2 ** 2 + 1 ** 2) ** 0.5 * 10),
+            round((2 ** 2 + 2 ** 2) ** 0.5 * 10),
+        ]
+
+        def callable(p: GenerateFromNearestKeyParams) -> int:
+            return round(p.distance * 10)
+
+        generate_from_nearest(image, points, callable, include_distance=True)
+        assert np.array_equal(np.asarray(image), np.array([
+            [pd[5], pd[4], pd[3]],
+            [pd[4], pd[2], pd[1]],
+            [pd[3], pd[1], pd[0]],
+        ]))
+
+    @staticmethod
+    def test_manhattan_distance():
         image = Image.new("L", (3, 3))
         points = [(2, 2)]
 
-        def callable(image: Image, coordinate: tuple[int, int], nearest: Point) -> int:
+        def callable(p: GenerateFromNearestKeyParams) -> int:
             return int(np.sum(
                 np.abs(
-                    np.array(coordinate) - np.array([nearest.x, nearest.y])
+                    np.array(p.coordinates) - np.array([p.nearest_point.x, p.nearest_point.y])
                 )
             ))
 
@@ -88,8 +111,8 @@ class TestGenerateFromNearest:
         image = Image.new("L", (4, 4))
         points = [(0, 0), (3, 0)]
 
-        def callable(image: Image, coordinate: tuple[int, int], nearest: Point) -> int:
-            return nearest.x
+        def callable(p: GenerateFromNearestKeyParams) -> int:
+            return p.nearest_point.x
 
         generate_from_nearest(image, points, callable)
         assert np.array_equal(np.asarray(image), np.array([
