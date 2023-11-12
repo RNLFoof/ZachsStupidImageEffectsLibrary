@@ -2,18 +2,19 @@ import io
 import math
 import os
 import random
+from dataclasses import dataclass
 from re import match, IGNORECASE
 from statistics import mean
-from typing import Iterable, Optional
-from typing import Sequence
+from typing import Iterable, Optional, Callable
 
-import scipy.spatial as spatial
+import quads
 from PIL import Image, ImageChops, ImageMath, ImageFilter
 from PIL import ImageDraw
 from wand.image import Image as WandImage
 
 from zsil import colors
-from zsil.internal import lengthdir_x, lengthdir_y, get_distances_to_points
+from zsil.analysis import Path, Vector
+from zsil.internal import lengthdir_x, lengthdir_y, get_distances_to_points, point_direction, point_distance
 
 #  Constants for simpleshape.
 SHAPE_TRIANGLE = 0
