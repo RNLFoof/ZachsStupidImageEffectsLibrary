@@ -1,7 +1,9 @@
+import concurrent
 import io
 import math
 import os
 import random
+from concurrent.futures.thread import ThreadPoolExecutor
 from dataclasses import dataclass
 from re import match, IGNORECASE
 from statistics import mean
@@ -1162,21 +1164,39 @@ def generate_from_nearest(image: Image, points: Iterable[Iterable[int]],
         tree.insert(point)
     draw = ImageDraw.ImageDraw(image)
 
+    output = {}
+
+    def process_key(co):
+        nearest_point = tree.nearest_neighbors(co, 1)[0]
+        direction = point_direction(*co, nearest_point.x, nearest_point.y) if include_direction else None
+        distance = point_distance(*co, nearest_point.x, nearest_point.y) if include_distance else None
+
+        params = GenerateFromNearestKeyParams(
+            image=image,
+            coordinates=co,
+            nearest_point=nearest_point,
+            direction=direction,
+            distance=distance
+        )
+
+        return key(params)
+
+    coordinateses = []
     for x in range(image.width):
         for y in range(image.height):
             coordinates = (x, y)
-            nearest_point = tree.nearest_neighbors(coordinates, 1)[0]
-            direction = point_direction(*coordinates, nearest_point.x, nearest_point.y) if include_direction else None
-            distance = point_distance(*coordinates, nearest_point.x, nearest_point.y) if include_distance else None
+            coordinateses.append(coordinates)
 
-            params = GenerateFromNearestKeyParams(
-                image=image,
-                coordinates=coordinates,
-                nearest_point=nearest_point,
-                direction=direction,
-                distance=distance
-            )
+    with ThreadPoolExecutor() as executor:
+        future_to_coordinates = {executor.submit(process_key, coordinates): coordinates for coordinates in
+                                 coordinateses}
 
-            result = key(params)
+    concurrent.futures.wait(future_to_coordinates, return_when="ALL_COMPLETED")
+    for future in concurrent.futures.as_completed(future_to_coordinates):
+        coordinates = future_to_coordinates[future]
+        try:
+            result = future.result()
             if result is not None:
                 draw.point(coordinates, result)
+        except Exception as e:
+            print('%r generated an exception: %s' % (coordinates, e))
