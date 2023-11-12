@@ -1109,3 +1109,52 @@ def buttonize(image: Image.Image, distance_from_edge: int = 5, outermost_color=(
         image = inner_outline(image, current_distance_from_edge, colors.merge_colors(outermost_color, innermost_color,
                                                                                      current_distance_from_edge / distance_from_edge))
     return image
+
+
+def double_points_along_path(path: Path) -> Path:
+    input_path = path
+    halved_path = []
+    for point_index, point in enumerate(input_path):
+        halved_path.append(point)
+
+        next_point_index = (point_index + 1) % len(input_path)
+        next_point = input_path[next_point_index]
+
+        point_in_the_middle = (point + next_point) / 2
+        halved_path.append(point_in_the_middle)
+    return halved_path
+
+
+def subdivide_path(path: Path, repetitions=1):
+    if repetitions > 1:
+        for repetition in range(repetitions):
+            path = subdivide_path(path, 1)
+        return path
+
+    input_path = double_points_along_path(path)
+    subdivided_path = []
+    for point_index, point in enumerate(input_path):
+        point: Vector
+        next_point_index = (point_index + 1) % len(input_path)
+        next_point = input_path[next_point_index]
+        previous_point_index = (point_index - 1) % len(input_path)
+        previous_point = input_path[previous_point_index]
+
+        averaged_point = point * 0.5 + next_point * 0.25 + previous_point * 0.25
+        subdivided_path.append(averaged_point)
+    return subdivided_path
+
+
+def generate_from_nearest(image: Image, points: Iterable[Iterable[int]],
+                          key: Callable[[Image.Image, tuple[int, int], tuple[float, float]], None | tuple[int, ...]]):
+    tree = quads.QuadTree((image.width // 2, image.height // 2), *image.size)
+    for point in points:
+        tree.insert(point)
+    draw = ImageDraw.ImageDraw(image)
+
+    for x in range(image.width):
+        for y in range(image.height):
+            coordinates = (x, y)
+            result = key(image, coordinates, tree.nearest_neighbors(coordinates, 1)[0])
+            if result is not None:
+                draw.point(coordinates, result)
