@@ -1166,20 +1166,24 @@ def generate_from_nearest(image: Image, points: Iterable[Iterable[int]],
 
     output = {}
 
-    def process_key(co):
-        nearest_point = tree.nearest_neighbors(co, 1)[0]
-        direction = point_direction(*co, nearest_point.x, nearest_point.y) if include_direction else None
-        distance = point_distance(*co, nearest_point.x, nearest_point.y) if include_distance else None
+    def process_key(coordinates_within_key):
+        nearest_point = tree.nearest_neighbors(coordinates_within_key, 1)[0]
+        direction = point_direction(*coordinates_within_key, nearest_point.x,
+                                    nearest_point.y) if include_direction else None
+        distance = point_distance(*coordinates_within_key, nearest_point.x,
+                                  nearest_point.y) if include_distance else None
 
         params = GenerateFromNearestKeyParams(
             image=image,
-            coordinates=co,
+            coordinates=coordinates_within_key,
             nearest_point=nearest_point,
             direction=direction,
             distance=distance
         )
 
-        return key(params)
+        result = key(params)
+        if result is not None:
+            draw.point(coordinates_within_key, result)
 
     coordinateses = []
     for x in range(image.width):
@@ -1192,11 +1196,3 @@ def generate_from_nearest(image: Image, points: Iterable[Iterable[int]],
                                  coordinateses}
 
     concurrent.futures.wait(future_to_coordinates, return_when="ALL_COMPLETED")
-    for future in concurrent.futures.as_completed(future_to_coordinates):
-        coordinates = future_to_coordinates[future]
-        try:
-            result = future.result()
-            if result is not None:
-                draw.point(coordinates, result)
-        except Exception as e:
-            print('%r generated an exception: %s' % (coordinates, e))
