@@ -79,7 +79,24 @@ def point_distance(x1: float, y1: float, x2: float, y2: float) -> float:
     -------
         The distance between the two points.
     """
-    return ((abs(x2 - x1) ** 2) + (abs(y2 - y1) ** 2)) ** 0.5
+    return point_distance_from_origin(x2 - x1, y2 - y1)
+
+
+def point_distance_from_origin(x: float, y: float) -> float:
+    """Returns the distance between a point and the origin.
+
+    Parameters
+    ----------
+    x
+        The x component of the point.
+    y
+        The y component of the point.
+
+    Returns
+    -------
+        The distance between the two points.
+    """
+    return np.linalg.norm((x, y))
 
 
 def point_direction(x1: float, y1: float, x2: float, y2: float) -> float:
