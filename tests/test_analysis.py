@@ -44,9 +44,27 @@ def test_get_edge_points_square():
     ])
 
 
-def test_get_center_pixels():
-    rectangle_image = Image.new("RGBA", (3, 5), 0xffffffff)
-    with assume: assert get_center_pixels(rectangle_image) == {(1, 1), (2, 1), (3, 1)}
+class TestGenerateFromNearestKeyParams:
+    @staticmethod
+    @pytest.mark.parametrize("expectations", [
+        (GenerateFromNearestKeyParams(None, (0, 0), quads.Point(1, 1)), (1, 1)),
+        (GenerateFromNearestKeyParams(None, (1, 1), quads.Point(2, 2)), (1, 1)),
+    ])
+    def test_offset_to_origin(expectations):
+        params, result = expectations
+        assert params.offset_to_origin() == result
+
+    @staticmethod
+    @pytest.mark.parametrize("expectations", [
+        ((0, 1), 1),
+        ((1, 0), 1),
+        ((1, 1), 2 ** 0.5),
+        ((1, 2), 5 ** 0.5),
+        ((-1, -2), 5 ** 0.5),
+    ])
+    def test_distance_from_origin(expectations):
+        vector, result = expectations
+        assert GenerateFromNearestKeyParams._distance_from_origin(vector) == result
 
 class TestGenerateFromNearest:
     @staticmethod
@@ -55,9 +73,9 @@ class TestGenerateFromNearest:
         points = [(1, 1)]
 
         def callable(p: GenerateFromNearestKeyParams) -> int:
-            return int(p.direction / tau * 8)
+            return int(p.direction() / tau * 8)
 
-        generate_from_nearest(image, points, callable, include_direction=True)
+        generate_from_nearest(image, points, callable)
         assert np.array_equal(np.asarray(image), np.array([
             [7, 6, 5],
             [0, 0, 4],
@@ -78,9 +96,9 @@ class TestGenerateFromNearest:
         ]
 
         def callable(p: GenerateFromNearestKeyParams) -> int:
-            return round(p.distance * 10)
+            return round(p.distance() * 10)
 
-        generate_from_nearest(image, points, callable, include_distance=True)
+        generate_from_nearest(image, points, callable)
         assert np.array_equal(np.asarray(image), np.array([
             [pd[5], pd[4], pd[3]],
             [pd[4], pd[2], pd[1]],

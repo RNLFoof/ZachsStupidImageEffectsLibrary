@@ -5,6 +5,7 @@ import os
 import random
 from concurrent.futures.thread import ThreadPoolExecutor
 from dataclasses import dataclass
+from functools import cache
 from re import match, IGNORECASE
 from statistics import mean
 from typing import Iterable, Optional, Callable
@@ -16,7 +17,7 @@ from wand.image import Image as WandImage
 
 from zsil import colors
 from zsil.analysis import Path, Vector
-from zsil.internal import lengthdir_x, lengthdir_y, get_distances_to_points, point_direction, point_distance
+from zsil.internal import lengthdir_x, lengthdir_y, get_distances_to_points, point_direction, point_distance_from_origin
 
 #  Constants for simpleshape.
 SHAPE_TRIANGLE = 0
@@ -1153,12 +1154,32 @@ class GenerateFromNearestKeyParams:
     image: Image.Image
     coordinates: tuple[int, int]
     nearest_point: quads.Point
-    direction: Optional[float]
-    distance: Optional[float]
+
+    def offset_to_origin(self):
+        return self._global_offset_to_origin(self.coordinates, self.nearest_point)
+
+    @staticmethod
+    @cache
+    def _global_offset_to_origin(coordinates: tuple[int], nearest_point: quads.Point):
+        return (
+            nearest_point.x - coordinates[0],
+            nearest_point.y - coordinates[1],
+        )
+
+    def direction(self) -> Optional[float]:
+        return point_direction(*self.coordinates, self.nearest_point.x,
+                               self.nearest_point.y)
+
+    def distance(self) -> Optional[float]:
+        return self._distance_from_origin(self.offset_to_origin())
+
+    @staticmethod
+    @cache
+    def _distance_from_origin(vector: tuple[float, float]) -> float:
+        return point_distance_from_origin(*vector)
 
 def generate_from_nearest(image: Image, points: Iterable[Iterable[int]],
-                          key: Callable[[GenerateFromNearestKeyParams], None | tuple[int, ...]],
-                          include_direction=False, include_distance=False):
+                          key: Callable[[GenerateFromNearestKeyParams], None | tuple[int, ...]]):
     tree = quads.QuadTree((image.width // 2, image.height // 2), *image.size)
     for point in points:
         tree.insert(point)
@@ -1168,17 +1189,11 @@ def generate_from_nearest(image: Image, points: Iterable[Iterable[int]],
 
     def process_key(coordinates_within_key):
         nearest_point = tree.nearest_neighbors(coordinates_within_key, 1)[0]
-        direction = point_direction(*coordinates_within_key, nearest_point.x,
-                                    nearest_point.y) if include_direction else None
-        distance = point_distance(*coordinates_within_key, nearest_point.x,
-                                  nearest_point.y) if include_distance else None
 
         params = GenerateFromNearestKeyParams(
             image=image,
             coordinates=coordinates_within_key,
             nearest_point=nearest_point,
-            direction=direction,
-            distance=distance
         )
 
         result = key(params)
