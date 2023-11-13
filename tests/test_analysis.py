@@ -121,3 +121,16 @@ class TestGenerateFromNearest:
             [0, 0, 3, 3],
             [0, 0, 3, 3],
         ]))
+
+    @staticmethod
+    def test_concurrency():
+        image = Image.new("L", (4, 4))
+        points = [(0, 0)]
+
+        def callable(p: GenerateFromNearestKeyParams) -> None:
+            time.sleep(0.1)
+            return None
+
+        with Timer() as timer:
+            generate_from_nearest(image, points, callable)
+        assert timer.elapsed <= 0.3
