@@ -1,5 +1,6 @@
 import math
 
+import numpy as np
 from numpy import pi
 
 tau = pi * 2
