@@ -38,12 +38,15 @@ def outline(image: Image.Image, radius: float, color, return_only: bool = False,
             breeze=None):
     """Draws an outline around an image with a transparent background.
 
-    Parameters:
-    image (PIL.Image): The image to draw the outline around.
+    Parameters
+    ----------
+    image
+        The image to draw the outline around.
     radius (int): How many pixels out the outline stretches.
     aaaaaaaaaaaa I care so little aaaaaaaaaa
 
-    Returns:
+    Returns
+    -------
     int:Returning value
 
    """
@@ -255,14 +258,17 @@ def offset_edge(image: Image.Image, xoff, yoff):
 def crop_to_content(image: Image.Image, force_top=None, force_left=None, force_bottom=None, force_right=None):
     """Returns an image cropped to its bounding box.
 
-    Parameters:
-    image (PIL.Image): The image to be cropped.
+    Parameters
+    ----------
+    image
+        The image to be cropped.
     force_top (int): Replaces the top of the bounding box.
     force_left (int): Replaces the left of the bounding box.
     force_bottom (int): Replaces the bottom of the bounding box.
     force_right (int): Replaces the right of the bounding box.
 
-    Returns:
+    Returns
+    -------
     (PIL.Image): Cropped image."""
     # Get bounding box
     bb = image.getbbox()
@@ -751,8 +757,10 @@ def repaint(image: Image.Image, function, growth_chance=0.5, recalculation_rate=
     Image B but not image A, and runs function on Image B using the information from that pixel on Image A.
     I suppose it could be thought of repainting image using function as the brush.
 
-    Parameters:
-    image (PIL.Image): The original image.
+    Parameters
+    ----------
+    image
+        The original image.
     function (function): A function that takes the following arguments:
         image (PIL.ImageDraw.ImageDraw): Image.Image B.
         xy (Tuple): Where to draw on Image B.
@@ -761,7 +769,8 @@ def repaint(image: Image.Image, function, growth_chance=0.5, recalculation_rate=
     growth_chance (float): Chance of higher sizes. Must be less than one.
     recalculation_rate (int): How many "strokes" will be done at once before checking which pixels are still transparent.
 
-    Returns:
+    Returns
+    -------
     tuple: All coordinates to which function returned true."""
     # Make sure the growth chance isn't 1 or greater to avoid infinite loops
     if growth_chance >= 1:
@@ -808,14 +817,16 @@ def repaint(image: Image.Image, function, growth_chance=0.5, recalculation_rate=
 def simple_shape(image_or_draw, xy, radius, color, shape, rotation=None):
     """Wrapper for more complicated shape drawing functions so they can be more easily interchanged.
 
-    Parameters:
+    Parameters
+    ----------
     image (PIL.ImageDraw.ImageDraw or PIL.Image): The Image or ImageDraw to draw on.
     xy (Tuple): Center point of the shape.
     radius (float): Distance from center the shape reaches.
     color (Tuple): Color/fill of the shape.
     rotation: Angle of the shape. Random if not provided.
 
-    Returns:
+    Returns
+    -------
     PIL.ImageDraw.ImageDraw or PIL.Image: Image.Image. Doesn't make a copy, only returns for convenience."""
     x, y = xy
     if rotation is None:
@@ -891,11 +902,13 @@ def simple_shape(image_or_draw, xy, radius, color, shape, rotation=None):
 def predict_thumbnail_size(original_size: tuple[int, int], new_size: Image.Image):
     """Figures out what size an image of original_size would become if you used it to make a thumbnail of new_size.
 
-    Parameters:
+    Parameters
+    ----------
     original_size (Tuple): Original size(duh).
     new_size (Tuple): New size(duh).
 
-    Returns:
+    Returns
+    -------
     Tuple: Predicted thumbnail size."""
     original_width, original_height = original_size
     x, y = map(math.floor, new_size)
@@ -918,6 +931,7 @@ def predict_thumbnail_size(original_size: tuple[int, int], new_size: Image.Image
 
 def multiline_textsize_but_it_works(text, font, max_width: int = 1500):
     # Should probably implement other parameters.
+    # Also, I think the Pillow version works now?
     image = Image.new('RGBA', (max_width, 1200), color=(0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
     draw.multiline_text((0, 0), text, font=font, fill="black", align="center")
@@ -937,11 +951,13 @@ def auto_breaking_text(image_or_draw, allowed_width, xy, text, fill=None, font=N
                        embedded_color=False):
     """Draws PIL text and adds line breaks whenever it gets too wide.
 
-    Parameters:
+    Parameters
+    ----------
     original_size (Tuple): Original size(duh).
     new_size (Tuple): New size(duh).
 
-    Returns:
+    Returns
+    -------
     Tuple: Predicted thumbnail size."""
     if type(image_or_draw) == Image.Image:
         draw = ImageDraw.Draw(image_or_draw)
