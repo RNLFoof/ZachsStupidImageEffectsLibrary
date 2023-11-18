@@ -152,3 +152,30 @@ class TestGenerateFromNearest:
         with Timer() as timer:
             generate_from_nearest(image, points, callable)
         assert timer.elapsed <= 0.3
+
+    @staticmethod
+    def test_four_bands():
+        image = Image.new("RGBA", (4, 4))
+        points = [(0, 0)]
+
+        def callable(p: GenerateFromNearestKeyParams):
+            return tuple([*([p.coordinates[1]] * 3), 255])
+
+        generate_from_nearest(image, points, callable)
+        assert np.array_equal(np.asarray(image), np.array([
+            [[*([0] * 3), 255]] * 4,
+            [[*([1] * 3), 255]] * 4,
+            [[*([2] * 3), 255]] * 4,
+            [[*([3] * 3), 255]] * 4,
+        ]))
+
+    @staticmethod
+    def test_exception():
+        image = Image.new("RGBA", (4, 4))
+        points = [(0, 0)]
+
+        def callable(p: GenerateFromNearestKeyParams):
+            raise Exception()
+
+        with pytest.raises(Exception):
+            generate_from_nearest(image, points, callable)

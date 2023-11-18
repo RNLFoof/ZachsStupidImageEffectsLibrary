@@ -1226,4 +1226,5 @@ def generate_from_nearest(image: Image, points: Iterable[Iterable[int]],
         future_to_coordinates = {executor.submit(process_key, coordinates): coordinates for coordinates in
                                  coordinateses}
 
-    concurrent.futures.wait(future_to_coordinates, return_when="ALL_COMPLETED")
+    for future in concurrent.futures.as_completed(future_to_coordinates):
+        future.result()  # Just to propagate errors
