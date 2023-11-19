@@ -250,8 +250,8 @@ def offset_edge(image: Image.Image, xoff, yoff):
     all_black_image.alpha_composite(w)
     this_band_is_going_to_be_every_band = all_black_image.getchannel("R")
     ret = Image.merge("RGBA", (
-    this_band_is_going_to_be_every_band, this_band_is_going_to_be_every_band, this_band_is_going_to_be_every_band,
-    this_band_is_going_to_be_every_band))
+        this_band_is_going_to_be_every_band, this_band_is_going_to_be_every_band, this_band_is_going_to_be_every_band,
+        this_band_is_going_to_be_every_band))
     return ret
 
 
@@ -1194,9 +1194,10 @@ class GenerateFromNearestKeyParams:
     def _distance_from_origin(vector: tuple[float, float]) -> float:
         return point_distance_from_origin(*vector)
 
-def generate_from_nearest(image: Image, points: Iterable[Iterable[int]],
-                          key: Callable[[GenerateFromNearestKeyParams], None | tuple[int, ...]],
-                          coordinates_to_go_over: Optional[Iterable[tuple[int, int]]] = None) -> Generator[
+
+def generate_from_nearest_iterable(image: Image, points: Iterable[Iterable[int]],
+                                   key: Callable[[GenerateFromNearestKeyParams], None | tuple[int, ...]],
+                                   coordinates_to_go_over: Optional[Iterable[tuple[int, int]]] = None) -> Generator[
     tuple[int, int, int], None, None]:
     tree = quads.QuadTree((image.width // 2, image.height // 2), *image.size)
     for point in points:
@@ -1230,4 +1231,13 @@ def generate_from_nearest(image: Image, points: Iterable[Iterable[int]],
                                  coordinates_to_go_over}
 
     for future in concurrent.futures.as_completed(future_to_coordinates):
-        yield future.result()
+        yield_this = future.result()
+        yield yield_this
+
+
+def generate_from_nearest(image: Image, points: Iterable[Iterable[int]],
+                          key: Callable[[GenerateFromNearestKeyParams], None | tuple[int, ...]],
+                          coordinates_to_go_over: Optional[Iterable[tuple[int, int]]] = None):
+    for _ in generate_from_nearest_iterable(image, points, key,
+                                            coordinates_to_go_over=coordinates_to_go_over):
+        pass

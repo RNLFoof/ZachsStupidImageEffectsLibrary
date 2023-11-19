@@ -1,5 +1,27 @@
+import time
+from itertools import permutations
+
+import numpy as np
+import pytest
+import quads
 from PIL import Image
-from pytest_assume.plugin import assume
+from contexttimer import Timer
+from numpy import pi
+
+from tests.test_colors import assert_image_matches_expectation
+from tests.utility import test_image_paths, demo_paths, demo_pixels
+from zsil.analysis import get_edge_points, get_edge_paths, get_edge_pixels
+from zsil.cool_stuff import generate_from_nearest, GenerateFromNearestKeyParams, generate_from_nearest_iterable
+
+# https://stackoverflow.com/a/61328104
+# def pytest_collection_modifyitems(items):
+#     for item in items:
+#         # check that we are altering a test named `test_xxx`
+#         # and it accepts the `value` arg
+#         if item.originalname.endswith("_xxx") and "test_image_path" in item.fixturenames:
+#             item._nodeid = item.nodeid.replace(']', '').replace('xxx[', '')
+
+tau = pi * 2
 
 from zsil.analysis import get_edge_points, get_center_pixels
 
@@ -204,5 +226,5 @@ class TestGenerateFromNearest:
         def callable(_: GenerateFromNearestKeyParams):
             return 255
 
-        result = list(generate_from_nearest(image, points, callable))
+        result = list(generate_from_nearest_iterable(image, points, callable))
         assert len(result) == 9
