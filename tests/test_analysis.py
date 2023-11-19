@@ -174,8 +174,24 @@ class TestGenerateFromNearest:
         image = Image.new("RGBA", (4, 4))
         points = [(0, 0)]
 
-        def callable(p: GenerateFromNearestKeyParams):
+        def callable(_: GenerateFromNearestKeyParams):
             raise Exception()
 
         with pytest.raises(Exception):
             generate_from_nearest(image, points, callable)
+
+    @staticmethod
+    def test_coordinates_to_go_over():
+        image = Image.new("L", (3, 3), 0)
+        points = [(0, 0)]
+        coordinates_to_go_over = [(1, 1)]
+
+        def callable(p: GenerateFromNearestKeyParams):
+            return 255
+
+        generate_from_nearest(image, points, callable, coordinates_to_go_over=coordinates_to_go_over)
+        assert np.array_equal(np.asarray(image), np.array([
+            [0, 0, 0],
+            [0, 255, 0],
+            [0, 0, 0],
+        ]))

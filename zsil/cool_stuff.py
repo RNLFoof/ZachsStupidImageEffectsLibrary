@@ -1195,7 +1195,8 @@ class GenerateFromNearestKeyParams:
         return point_distance_from_origin(*vector)
 
 def generate_from_nearest(image: Image, points: Iterable[Iterable[int]],
-                          key: Callable[[GenerateFromNearestKeyParams], None | tuple[int, ...]]):
+                          key: Callable[[GenerateFromNearestKeyParams], None | tuple[int, ...]],
+                          coordinates_to_go_over: Optional[Iterable[tuple[int, int]]] = None):
     tree = quads.QuadTree((image.width // 2, image.height // 2), *image.size)
     for point in points:
         tree.insert(point)
@@ -1216,15 +1217,16 @@ def generate_from_nearest(image: Image, points: Iterable[Iterable[int]],
         if result is not None:
             draw.point(coordinates_within_key, result)
 
-    coordinateses = []
-    for x in range(image.width):
-        for y in range(image.height):
-            coordinates = (x, y)
-            coordinateses.append(coordinates)
+    if coordinates_to_go_over is None:
+        coordinates_to_go_over = []
+        for x in range(image.width):
+            for y in range(image.height):
+                coordinates = (x, y)
+                coordinates_to_go_over.append(coordinates)
 
     with ThreadPoolExecutor() as executor:
         future_to_coordinates = {executor.submit(process_key, coordinates): coordinates for coordinates in
-                                 coordinateses}
+                                 coordinates_to_go_over}
 
     for future in concurrent.futures.as_completed(future_to_coordinates):
         future.result()  # Just to propagate errors
