@@ -186,7 +186,7 @@ class TestGenerateFromNearest:
         points = [(0, 0)]
         coordinates_to_go_over = [(1, 1)]
 
-        def callable(p: GenerateFromNearestKeyParams):
+        def callable(_: GenerateFromNearestKeyParams):
             return 255
 
         generate_from_nearest(image, points, callable, coordinates_to_go_over=coordinates_to_go_over)
@@ -195,3 +195,14 @@ class TestGenerateFromNearest:
             [0, 255, 0],
             [0, 0, 0],
         ]))
+
+    @staticmethod
+    def test_iterable():
+        image = Image.new("L", (3, 3), 0)
+        points = [(0, 0)]
+
+        def callable(_: GenerateFromNearestKeyParams):
+            return 255
+
+        result = list(generate_from_nearest(image, points, callable))
+        assert len(result) == 9

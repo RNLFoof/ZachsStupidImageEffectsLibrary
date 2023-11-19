@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from functools import cache
 from re import match, IGNORECASE
 from statistics import mean
-from typing import Iterable, Optional, Callable
+from typing import Iterable, Optional, Callable, Generator
 
 import quads
 from PIL import Image, ImageChops, ImageMath, ImageFilter
@@ -1196,7 +1196,8 @@ class GenerateFromNearestKeyParams:
 
 def generate_from_nearest(image: Image, points: Iterable[Iterable[int]],
                           key: Callable[[GenerateFromNearestKeyParams], None | tuple[int, ...]],
-                          coordinates_to_go_over: Optional[Iterable[tuple[int, int]]] = None):
+                          coordinates_to_go_over: Optional[Iterable[tuple[int, int]]] = None) -> Generator[
+    tuple[int, int, int], None, None]:
     tree = quads.QuadTree((image.width // 2, image.height // 2), *image.size)
     for point in points:
         tree.insert(point)
@@ -1229,4 +1230,4 @@ def generate_from_nearest(image: Image, points: Iterable[Iterable[int]],
                                  coordinates_to_go_over}
 
     for future in concurrent.futures.as_completed(future_to_coordinates):
-        future.result()  # Just to propagate errors
+        yield future.result()
