@@ -1169,10 +1169,13 @@ def subdivide_path(path: Path, repetitions=1):
 class GenerateFromNearestKeyParams:
     image: Image.Image
     coordinates: tuple[int, int]
-    nearest_points: quads.Point
+    nearest_points: list[quads.Point]
 
-    def offset_to_origin(self):
-        return self._global_offset_to_origin(self.coordinates, self.nearest_points)
+    def offset_to_origins(self):
+        return [
+            self._global_offset_to_origin(self.coordinates, nearest_point)
+            for nearest_point in self.nearest_points
+        ]
 
     @staticmethod
     @cache
@@ -1187,7 +1190,7 @@ class GenerateFromNearestKeyParams:
                                self.nearest_points.y)
 
     def distance(self) -> Optional[float]:
-        return self._distance_from_origin(self.offset_to_origin())
+        return self._distance_from_origin(self.offset_to_origins())
 
     @staticmethod
     @cache
