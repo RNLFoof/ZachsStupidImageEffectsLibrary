@@ -1211,7 +1211,7 @@ def generate_from_nearest_iterable(image: Image, points: Iterable[Iterable[int]]
     output = {}
 
     def process_key(coordinates_within_key):
-        nearest_points = tree.nearest_neighbors(coordinates_within_key, 1)
+        nearest_points = tree.nearest_neighbors(coordinates_within_key, nearest_count)
         if nearest_count == 1:
             nearest_points = nearest_points[0]
 
