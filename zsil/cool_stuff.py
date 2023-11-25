@@ -1169,10 +1169,10 @@ def subdivide_path(path: Path, repetitions=1):
 class GenerateFromNearestKeyParams:
     image: Image.Image
     coordinates: tuple[int, int]
-    nearest_point: quads.Point
+    nearest_points: quads.Point
 
     def offset_to_origin(self):
-        return self._global_offset_to_origin(self.coordinates, self.nearest_point)
+        return self._global_offset_to_origin(self.coordinates, self.nearest_points)
 
     @staticmethod
     @cache
@@ -1183,8 +1183,8 @@ class GenerateFromNearestKeyParams:
         )
 
     def direction(self) -> Optional[float]:
-        return point_direction(*self.coordinates, self.nearest_point.x,
-                               self.nearest_point.y)
+        return point_direction(*self.coordinates, self.nearest_points.x,
+                               self.nearest_points.y)
 
     def distance(self) -> Optional[float]:
         return self._distance_from_origin(self.offset_to_origin())
@@ -1197,7 +1197,8 @@ class GenerateFromNearestKeyParams:
 
 def generate_from_nearest_iterable(image: Image, points: Iterable[Iterable[int]],
                                    key: Callable[[GenerateFromNearestKeyParams], None | tuple[int, ...]],
-                                   coordinates_to_go_over: Optional[Iterable[tuple[int, int]]] = None) -> Generator[
+                                   coordinates_to_go_over: Optional[Iterable[tuple[int, int]]] = None,
+                                   nearest_count=1) -> Generator[
     tuple[int, int, int], None, None]:
     tree = quads.QuadTree((image.width // 2, image.height // 2), *image.size)
     for point in points:
@@ -1207,12 +1208,14 @@ def generate_from_nearest_iterable(image: Image, points: Iterable[Iterable[int]]
     output = {}
 
     def process_key(coordinates_within_key):
-        nearest_point = tree.nearest_neighbors(coordinates_within_key, 1)[0]
+        nearest_points = tree.nearest_neighbors(coordinates_within_key, 1)
+        if nearest_count == 1:
+            nearest_points = nearest_points[0]
 
         params = GenerateFromNearestKeyParams(
             image=image,
             coordinates=coordinates_within_key,
-            nearest_point=nearest_point,
+            nearest_points=nearest_points,
         )
 
         result = key(params)
@@ -1237,7 +1240,8 @@ def generate_from_nearest_iterable(image: Image, points: Iterable[Iterable[int]]
 
 def generate_from_nearest(image: Image, points: Iterable[Iterable[int]],
                           key: Callable[[GenerateFromNearestKeyParams], None | tuple[int, ...]],
-                          coordinates_to_go_over: Optional[Iterable[tuple[int, int]]] = None):
+                          coordinates_to_go_over: Optional[Iterable[tuple[int, int]]] = None,
+                          nearest_count=1):
     for _ in generate_from_nearest_iterable(image, points, key,
-                                            coordinates_to_go_over=coordinates_to_go_over):
+                                            coordinates_to_go_over=coordinates_to_go_over, nearest_count=nearest_count):
         pass
